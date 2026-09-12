@@ -156,6 +156,8 @@
     <a class="sec-link" href="#conv1d">The Conv1D trap</a>
     <a class="sec-link" href="#proloaders">How the pros load</a>
     <a class="sec-link" href="#anatomy">Engine loader anatomy</a>
+    <a class="sec-link" href="#engineboot">Engine boot &amp; VRAM</a>
+    <a class="sec-link" href="#qwen3">2025-proof · Qwen3</a>
     <a class="sec-link" href="#exercises">Exercises</a>
     <a class="sec-link" href="#stack">The big picture</a>
   </div>
@@ -544,6 +546,11 @@ h.<span class="num">0</span>.mlp.c_proj.weight      (<span class="num">3072</spa
 <h2 id="proloaders">How the world actually loads weights</h2>
 <p class="sub">Nobody in production writes <code class="inline">buffer = f.read()</code>. Our parser is <strong>level 0</strong> of a ladder — every rung above is the same format, loaded more lazily. The format barely changes; the <em>laziness</em> is the engineering.</p>
 
+<div class="callout warn">
+  <div class="co-title">Day-1 scope contract</div>
+  Today we master <strong>loading only</strong>: formats, mmap, sharding-across-files, meta-device, dtype handling, name/layout mapping. Wherever a mechanism is about <em>multi-GPU or runtime optimization</em> rather than loading, it wears a <span class="badge todo">⏭ LATER DAY</span> switch — we note that it exists and where it plugs in, then defer it.
+</div>
+
 <!-- LADDER DIAGRAM -->
 <div class="diagram">
 <svg width="700" height="268" viewBox="0 0 700 268">
@@ -592,7 +599,7 @@ h.<span class="num">0</span>.mlp.c_proj.weight      (<span class="num">3072</spa
   <text class="svg-txt-sm" x="625" y="66" text-anchor="middle" style="fill:#059669;font-weight:700">TRT-LLM</text>
   <!-- baseline -->
   <line x1="20" y1="232" x2="680" y2="232" stroke="#d9d9de" stroke-width="1.4"/>
-  <text class="svg-txt-sm" x="350" y="254" text-anchor="middle">RAM touched per load → less&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;cold-start time → shorter&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;GPU idle during load → none</text>
+  <text class="svg-txt-sm" x="350" y="254" text-anchor="middle">RAM touched per load → less&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;cold-start time → shorter&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;GPU idle during load → none&nbsp;&nbsp;&nbsp;(rungs 4–5 mechanics: ⏭ later days)</text>
 </svg>
 <div class="cap">Same bytes, same JSON header at every rung. What changes is <strong>when</strong> data moves and <strong>whose</strong> memory it lands in.</div>
 </div>
@@ -849,6 +856,7 @@ h.<span class="num">0</span>.mlp.c_proj.weight      (<span class="num">3072</spa
 <div class="cap">vLLM's <code style="font-family:var(--mono)">stacked_params_mapping = [("qkv_proj", "q_proj", "q"), ("qkv_proj", "k_proj", "k"), …]</code> is literally this picture as data.</div>
 </div>
 
+<p><span class="badge todo">⏭ DEFERRED — multi-GPU day</span> &nbsp;Shown once so the picture is complete; we go deep on TP when we hit parallelism.</p>
 <!-- TP SLICE AT LOAD -->
 <div class="diagram">
 <svg width="700" height="150" viewBox="0 0 700 150">
@@ -935,6 +943,259 @@ engine[<span class="st">"lm_head.weight"</span>] = engine[<span class="st">"tran
 <div class="callout info">
   <div class="co-title">The mental compression</div>
   An engine loader is a <strong>compiler for names and layouts</strong>: checkpoint-space → engine-space. Four hooks; the only real content is the mapping table (per model family) and what "place" does (copy / fuse / slice / cast / compile). When you later read vLLM's <code class="inline">gpt2.py</code> or <code class="inline">llama.py</code> loader, you'll now recognize all four hooks on sight.
+</div>
+
+<div class="divider"></div>
+
+<!-- ─────────── ENGINE BOOT ─────────── -->
+<h2 id="engineboot">What "loading" means inside an engine</h2>
+<p class="sub">The reframe that connects your hand parser to vLLM/SGLang/TRT-LLM.</p>
+
+<div class="callout info">
+  <div class="co-title">Two different questions</div>
+  <strong>Your parser asks:</strong> "how do I turn safetensors bytes into tensors?"<br>
+  <strong>An engine asks:</strong> "how do I turn checkpoint weights into the <em>exact GPU-resident representation my kernels demand</em> — with minimum memory movement, paid once at boot?"
+</div>
+
+<h3>Engine boot sequence — what <code class="inline">vllm serve &lt;model&gt;</code> actually does</h3>
+<!-- BOOT SVG -->
+<div class="diagram">
+<svg width="700" height="225" viewBox="0 0 700 225">
+  <defs><marker id="arr15" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9a9aa0"/></marker></defs>
+  <text class="svg-txt-bold" x="20" y="18">boot = load once, then serve forever</text>
+  <!-- row 1 : loading scope -->
+  <rect class="svg-box-accent" x="20" y="40" width="150" height="52" rx="9"/>
+  <text class="svg-txt-sm" x="95" y="60" text-anchor="middle" style="font-weight:700">1 · config</text>
+  <text class="svg-txt-sm" x="95" y="76" text-anchor="middle">→ architecture registry</text>
+  <line class="svg-arrow" x1="170" y1="66" x2="190" y2="66" marker-end="url(#arr15)"/>
+  <rect class="svg-box-accent" x="194" y="40" width="150" height="52" rx="9"/>
+  <text class="svg-txt-sm" x="269" y="60" text-anchor="middle" style="font-weight:700">2 · model skeleton</text>
+  <text class="svg-txt-sm" x="269" y="76" text-anchor="middle">meta device: shapes only</text>
+  <line class="svg-arrow" x1="344" y1="66" x2="364" y2="66" marker-end="url(#arr15)"/>
+  <rect class="svg-box-accent" x="368" y="40" width="150" height="52" rx="9"/>
+  <text class="svg-txt-sm" x="443" y="60" text-anchor="middle" style="font-weight:700">3 · 4-hook load</text>
+  <text class="svg-txt-sm" x="443" y="76" text-anchor="middle">enumerate-filter-map-place</text>
+  <line class="svg-arrow" x1="518" y1="66" x2="538" y2="66" marker-end="url(#arr15)"/>
+  <rect class="svg-box-accent" x="542" y="40" width="150" height="52" rx="9" style="fill:#e0e7ff"/>
+  <text class="svg-txt-sm" x="617" y="60" text-anchor="middle" style="font-weight:700">4 · CPU → GPU</text>
+  <text class="svg-txt-sm" x="617" y="76" text-anchor="middle">H2D copy, pinned memory</text>
+  <!-- row 2 : runtime scope (deferred) -->
+  <line class="svg-arrow" x1="617" y1="92" x2="617" y2="118" marker-end="url(#arr15)"/>
+  <rect class="svg-box" x="542" y="122" width="150" height="52" rx="9"/>
+  <text class="svg-txt-sm" x="617" y="142" text-anchor="middle" style="font-weight:700">5 · profiling run</text>
+  <text class="svg-txt-sm" x="617" y="158" text-anchor="middle">measure → size KV cache ⏭</text>
+  <line class="svg-arrow" x1="542" y1="148" x2="522" y2="148" marker-end="url(#arr15)"/>
+  <rect class="svg-box" x="368" y="122" width="150" height="52" rx="9"/>
+  <text class="svg-txt-sm" x="443" y="142" text-anchor="middle" style="font-weight:700">6 · CUDA graphs</text>
+  <text class="svg-txt-sm" x="443" y="158" text-anchor="middle">capture kernels ⏭</text>
+  <line class="svg-arrow" x1="368" y1="148" x2="348" y2="148" marker-end="url(#arr15)"/>
+  <rect class="svg-box-green" x="194" y="122" width="150" height="52" rx="9"/>
+  <text class="svg-txt-sm" x="269" y="142" text-anchor="middle" style="font-weight:700">READY</text>
+  <text class="svg-txt-sm" x="269" y="158" text-anchor="middle">weights never move again</text>
+  <!-- scope brackets -->
+  <text class="svg-txt-sm" x="20" y="112" fill="#4f46e5" style="font-weight:700">◄ TODAY'S SCOPE (steps 1–4)</text>
+  <text class="svg-txt-sm" x="368" y="196" fill="#b45309">steps 5–6 are runtime memory/kernel management ⏭ later days</text>
+</svg>
+<div class="cap">vLLM &amp; SGLang boot this way (dynamic, Python-driven). TRT-LLM does steps 1–4 <em>offline</em> in <code style="font-family:var(--mono)">trtllm-build</code>, so its boot is: mmap <code style="font-family:var(--mono)">.plan</code> → ready.</div>
+</div>
+
+<h3>The deep idea: checkpoint layout ≠ execution layout</h3>
+<p>Your parser preserves the checkpoint's layout faithfully. An engine <em>cannot</em> — the kernel's contract dictates the layout, and satisfying that contract is the loader's real job:</p>
+
+<!-- LAYOUT SVG -->
+<div class="diagram">
+<svg width="700" height="180" viewBox="0 0 700 180">
+  <defs><marker id="arr16" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9a9aa0"/></marker></defs>
+  <rect class="svg-box" x="20" y="45" width="190" height="95" rx="9"/>
+  <text class="svg-txt-sm" x="115" y="65" text-anchor="middle" style="font-weight:700">ON DISK (checkpoint)</text>
+  <text class="svg-txt-sm" x="115" y="85" text-anchor="middle">c_attn (768, 2304) F32</text>
+  <text class="svg-txt-sm" x="115" y="102" text-anchor="middle">Conv1D (in, out)</text>
+  <text class="svg-txt-sm" x="115" y="119" text-anchor="middle">HF's naming</text>
+  <line class="svg-arrow" x1="210" y1="92" x2="245" y2="92" marker-end="url(#arr16)"/>
+  <rect class="svg-box-amber" x="250" y="45" width="200" height="95" rx="9"/>
+  <text class="svg-txt-sm" x="350" y="65" text-anchor="middle" style="font-weight:700">LOADER TRANSFORMS</text>
+  <text class="svg-txt-sm" x="350" y="85" text-anchor="middle">rename · transpose · cast</text>
+  <text class="svg-txt-sm" x="350" y="102" text-anchor="middle">fuse · pack · dequant ⏭</text>
+  <text class="svg-txt-sm" x="350" y="119" text-anchor="middle">(all inside hook 4: place)</text>
+  <line class="svg-arrow" x1="450" y1="92" x2="485" y2="92" marker-end="url(#arr16)"/>
+  <rect class="svg-box-green" x="490" y="45" width="190" height="95" rx="9"/>
+  <text class="svg-txt-sm" x="585" y="65" text-anchor="middle" style="font-weight:700">IN VRAM (execution)</text>
+  <text class="svg-txt-sm" x="585" y="85" text-anchor="middle">BF16, kernel-ready layout</text>
+  <text class="svg-txt-sm" x="585" y="102" text-anchor="middle">engine's naming</text>
+  <text class="svg-txt-sm" x="585" y="119" text-anchor="middle">whatever the GEMM wants</text>
+  <text class="svg-txt-sm" x="350" y="168" text-anchor="middle">GPT-2: (in,out) on disk → transpose at load&nbsp;&nbsp;·&nbsp;&nbsp;Qwen3: already (out,in) → direct copy — the mapping table absorbs the difference</text>
+</svg>
+<div class="cap">Bytes on disk ≠ bytes the kernel consumes. The disk format is an <em>archive</em>; the GPU layout is an <em>execution contract</em>. Loading = compiling one into the other, once.</div>
+</div>
+
+<h3>Weights vs KV cache — the two residents of VRAM</h3>
+<p>Don't mix these up — they're loaded at completely different times, by completely different subsystems:</p>
+
+<!-- VRAM SVG -->
+<div class="diagram">
+<svg width="700" height="195" viewBox="0 0 700 195">
+  <defs><marker id="arr17" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9a9aa0"/></marker></defs>
+  <!-- VRAM bar -->
+  <rect x="80" y="50" width="320" height="50" rx="8" fill="#eef2ff" stroke="#a5b4fc" stroke-width="1.4"/>
+  <text class="svg-txt-sm" x="240" y="70" text-anchor="middle" style="font-weight:700">MODEL WEIGHTS — static</text>
+  <text class="svg-txt-sm" x="240" y="88" text-anchor="middle">loaded ONCE at boot · never move · e.g. 8B BF16 ≈ 16 GB</text>
+  <rect x="400" y="50" width="190" height="50" rx="0" fill="#ecfdf5" stroke="#6ee7b7" stroke-width="1.4"/>
+  <text class="svg-txt-sm" x="495" y="70" text-anchor="middle" style="font-weight:700">KV CACHE POOL — dynamic</text>
+  <text class="svg-txt-sm" x="495" y="88" text-anchor="middle">grows/shrinks per request ⏭ Day 2+</text>
+  <rect x="590" y="50" width="60" height="50" rx="8" fill="#fff" stroke="#d9d9de" stroke-width="1.4"/>
+  <text class="svg-txt-sm" x="620" y="70" text-anchor="middle">free /</text>
+  <text class="svg-txt-sm" x="620" y="86" text-anchor="middle">activ.</text>
+  <text class="svg-txt-bold" x="20" y="82">VRAM</text>
+  <!-- arrows -->
+  <line class="svg-arrow" x1="180" y1="130" x2="180" y2="106" marker-end="url(#arr17)"/>
+  <text class="svg-txt-sm" x="180" y="146" text-anchor="middle">filled by today's 4 hooks</text>
+  <line class="svg-arrow" x1="495" y1="130" x2="495" y2="106" marker-end="url(#arr17)"/>
+  <text class="svg-txt-sm" x="495" y="146" text-anchor="middle">filled per-token at runtime — PagedAttention lives here ⏭</text>
+  <text class="svg-txt-sm" x="350" y="180" text-anchor="middle" fill="#6e6e73">vLLM's boot step 5 (profiling run) exists precisely to measure what's left after weights → that's the KV pool size</text>
+</svg>
+<div class="cap"></div>
+</div>
+
+<div class="callout warn">
+  <div class="co-title">Disk bytes ≠ GPU bytes, part 2 — quantization-aware loading ⏭ Day 3</div>
+  A checkpoint may ship FP16 while the kernel consumes INT8/FP8-packed weights. Then hook 4 (<em>place</em>) dequantizes/packs during load. Full treatment deferred — today you only need to know the hook point exists.
+</div>
+
+<h3>The 4 questions — how to read any engine component</h3>
+<div class="card">
+<table class="data">
+  <tr><th>Question</th><th>Answers to choose from</th><th>Today's instance</th></tr>
+  <tr><td><strong>Q1 · Where are the bytes?</strong></td><td class="mono">disk → CPU RAM → GPU HBM</td><td class="mono">disk → CPU (L0); page cache (L1+)</td></tr>
+  <tr><td><strong>Q2 · What representation?</strong></td><td class="mono">F32 / F16 / BF16 / FP8 / INT8 / packed</td><td class="mono">F32 (GPT-2) · BF16 (Qwen3, hand-upcast)</td></tr>
+  <tr><td><strong>Q3 · What layout?</strong></td><td class="mono">(in,out) / (out,in) / fused / sharded</td><td class="mono">Conv1D vs Linear flip; fused c_attn</td></tr>
+  <tr><td><strong>Q4 · Who consumes them?</strong></td><td class="mono">GEMM / FlashAttention / Triton / TRT kernel</td><td class="mono">NumPy matmul today; CUDA later ⏭</td></tr>
+</table>
+</div>
+
+<h3>The loading-mastery ladder — how today connects to the engines</h3>
+<div class="timeline">
+  <div class="tl-item done"><div class="tl-head"><span class="tl-tag">1–3</span>manual reader → mmap → lazy per-tensor</div><div class="tl-body">TODAY: hand parser done; mmap + lazy = your Part-1 exercises</div></div>
+  <div class="tl-item doing"><div class="tl-head"><span class="tl-tag">4</span>4-hook protocol + name mapping + fusion + junk filtering</div><div class="tl-body">TODAY: mini_vllm_loader.py verified against GPT-2 &amp; Qwen3</div></div>
+  <div class="tl-item"><div class="tl-head"><span class="tl-tag">5</span>CPU→GPU transfer, pinned memory</div><div class="tl-body">Day 2 (PyTorch as tensor tool, not modeling crutch)</div></div>
+  <div class="tl-item"><div class="tl-head"><span class="tl-tag">6</span>FP16/BF16 native handling</div><div class="tl-body">Day 3 — today's manual upcast is the foundation</div></div>
+  <div class="tl-item"><div class="tl-head"><span class="tl-tag">7</span>INT8/FP8/INT4 weight representation, pack/dequant at load</div><div class="tl-body">Day 3 — GPTQ/AWQ/GGUF checkpoints</div></div>
+  <div class="tl-item"><div class="tl-head"><span class="tl-tag">8–9</span>manual Linear → manual attention</div><div class="tl-body">Day 1 Parts 3–5 (NumPy forward, KV cache)</div></div>
+  <div class="tl-item"><div class="tl-head"><span class="tl-tag">10–12</span>KV cache → continuous batching → paged KV</div><div class="tl-body">Day 2+ — the doorway into vLLM proper</div></div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ─────────── QWEN3 2025-PROOF ─────────── -->
+<h2 id="qwen3">2025-proofing — Qwen3 autopsy</h2>
+<p class="sub">GPT-2 is from 2019. If our parser only works there, we learned history, not engineering. So we ran the <em>same hand parser</em> on <strong>Qwen3-0.6B</strong> (2025) — and pulled the shard index of Qwen3-32B. Verdict: the format didn't change; the <em>contents</em> did.</p>
+
+<div class="card">
+<table class="data">
+  <tr><th></th><th>GPT-2 (2019)</th><th>Qwen3-0.6B (2025)</th><th>Switch at load</th></tr>
+  <tr><td><strong>dtype</strong></td><td class="mono">F32 ×160 tensors</td><td class="mono">BF16 ×311 tensors</td><td>BF16 needs manual upcast in NumPy (below); engines load native</td></tr>
+  <tr><td><strong>norm</strong></td><td class="mono">LayerNorm weight+bias</td><td class="mono">RMSNorm — weight only</td><td>fewer tensors; no bias buffers</td></tr>
+  <tr><td><strong>position</strong></td><td class="mono">wpe table (1024×768)</td><td class="mono"><strong>no position tensor at all</strong></td><td>RoPE computed in-kernel ⏭</td></tr>
+  <tr><td><strong>attention</strong></td><td class="mono">MHA 12h · fused c_attn + bias</td><td class="mono">GQA 16 q-heads / <strong>8 kv-heads</strong> · separate q/k/v/o · q_norm/k_norm · zero biases</td><td>engine fuses q,k,v at load (Mechanism A — now <em>essential</em>, not optional); GQA halves KV-cache ⏭</td></tr>
+  <tr><td><strong>MLP</strong></td><td class="mono">gelu_new · c_fc→c_proj</td><td class="mono">SwiGLU · gate/up/down (3 matrices)</td><td>gate+up often fused at load too</td></tr>
+  <tr><td><strong>weight layout</strong></td><td class="mono">Conv1D (in, out)</td><td class="mono">nn.Linear <strong>(out, in)</strong> — trap flipped!</td><td>y = x @ Wᵀ now; GPT-2 habit breaks here</td></tr>
+  <tr><td><strong>embeddings</strong></td><td class="mono">tied implicitly</td><td class="mono">tie_word_embeddings=true — <strong>yet lm_head duplicate shipped (311 MB junk!)</strong></td><td>read config tie flag → tie &amp; skip</td></tr>
+  <tr><td><strong>scale</strong></td><td class="mono">1 file, 0.5 GB</td><td class="mono">0.6B = 1 file, 1.5 GB · 32B = <strong>17 shards, 65.5 GB</strong></td><td>index.json weight_map routing (below)</td></tr>
+  <tr><td><strong>format + hooks</strong></td><td class="mono">safetensors · 4 hooks</td><td class="mono">safetensors · 4 hooks</td><td><strong>UNCHANGED — the protocol is future-proof</strong></td></tr>
+</table>
+</div>
+
+<h3>The BF16 wall — and the 3-line ladder over it</h3>
+<p>Our <code class="inline">DTYPE_MAP</code> has no <code class="inline">BF16</code> entry — NumPy can't hold bfloat16. But BF16 is literally the <strong>top 16 bits of FP32</strong> (same exponent, truncated mantissa), so the upcast is one bit-shift:</p>
+
+<!-- BF16 BIT DIAGRAM -->
+<div class="diagram">
+<svg width="660" height="190" viewBox="0 0 660 190">
+  <defs><marker id="arr13" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9a9aa0"/></marker></defs>
+  <text class="svg-txt-bold" x="20" y="20">bit layout: BF16 = FP32 with the bottom 16 bits cut off</text>
+  <!-- fp32 bar: S=1,E=8,M=23 bits ; scale 16px/bit-ish -->
+  <text class="svg-txt-sm" x="20" y="52">FP32</text>
+  <rect x="70" y="38" width="18" height="26" fill="#fca5a5"/>
+  <rect x="88" y="38" width="144" height="26" fill="#fcd34d"/>
+  <rect x="232" y="38" width="368" height="26" fill="#c7d2fe"/>
+  <text class="svg-txt-sm" x="79" y="55" text-anchor="middle">S</text>
+  <text class="svg-txt-sm" x="160" y="55" text-anchor="middle">exponent · 8</text>
+  <text class="svg-txt-sm" x="416" y="55" text-anchor="middle">mantissa · 23</text>
+  <!-- bf16 bar -->
+  <text class="svg-txt-sm" x="20" y="102">BF16</text>
+  <rect x="70" y="88" width="18" height="26" fill="#fca5a5"/>
+  <rect x="88" y="88" width="144" height="26" fill="#fcd34d"/>
+  <rect x="232" y="88" width="112" height="26" fill="#818cf8"/>
+  <text class="svg-txt-sm" x="79" y="105" text-anchor="middle">S</text>
+  <text class="svg-txt-sm" x="160" y="105" text-anchor="middle">exponent · 8</text>
+  <text class="svg-txt-sm" x="288" y="105" text-anchor="middle">mant. · 7</text>
+  <rect x="344" y="88" width="256" height="26" rx="4" fill="none" stroke="#dc2626" stroke-width="1.4" stroke-dasharray="5 4"/>
+  <text class="svg-txt-sm" x="472" y="105" text-anchor="middle" fill="#dc2626">16 bits truncated</text>
+  <!-- upcast -->
+  <line class="svg-arrow" x1="207" y1="118" x2="207" y2="140" marker-end="url(#arr13)"/>
+  <text class="svg-txt-sm" x="20" y="158">upcast</text>
+  <text class="svg-txt-sm" x="70" y="158">uint16 → uint32 &lt;&lt; 16 → .view(float32)&nbsp;&nbsp;=&nbsp;&nbsp;same range, zero-filled mantissa</text>
+  <text class="svg-txt-sm" x="70" y="178" fill="#6e6e73">why BF16 won: keeps FP32's range (8-bit exponent) — training/inference don't overflow; FP16 would. Engines load BF16 natively; NumPy needs this trick.</text>
+</svg>
+<div class="cap"></div>
+</div>
+
+<div class="code-head"><span>load_one_bf16() — from compare_qwen3.py</span><button class="copy-btn" data-copy="bf16">copy</button></div>
+<pre id="code-bf16">u16 = np.<span class="fn">frombuffer</span>(buffer[b:e], dtype=np.uint16)     <span class="cm"># raw bf16 bits, as integers</span>
+f32 = (u16.astype(np.uint32) &lt;&lt; <span class="num">16</span>).<span class="fn">view</span>(np.float32) <span class="cm"># bits → top half of fp32</span>
+<span class="kw">return</span> f32.<span class="fn">reshape</span>(info[<span class="st">"shape"</span>])                    <span class="cm"># same reshape rule as always</span></pre>
+
+<h3>Checkpoint junk, 2025 edition</h3>
+<div class="callout disc">
+  <div class="co-title">✔ Found live</div>
+  <code class="inline">tie_word_embeddings: true</code> in config — yet the checkpoint <strong>still ships lm_head.weight</strong>: 155.6M values = <strong>311 MB of redundant bytes</strong> (20% of the file!). GPT-2 wasted 9% on mask buffers; Qwen3 wastes 20% on a duplicate embedding. Engines read the config flag, tie once, skip the duplicate. Rule survives: <strong>the file is not the model — config + file is.</strong>
+</div>
+
+<details open>
+  <summary>Actual run — <code style="font-family:var(--mono)">python code/compare_qwen3.py</code></summary>
+  <div class="det-body">
+<pre class="term"><span class="p">=== Qwen3-0.6B (2025) ===</span>
+<span class="p">tensors=311  dtypes={'BF16': 311}  values_on_disk=751,632,384</span>
+<span class="dim">layer-0: q_proj[2048,1024] k/v_proj[1024,1024] o_proj[1024,2048]</span>
+<span class="dim">         q/k_norm[128] gate/up[3072,1024] down[1024,3072] RMSNorms[1024]</span>
+<span class="p">BF16 upcast check: q_proj[0,:4] -&gt; [0.0034 -0.0035 -0.0127 0.0204]</span>
+<span class="p">tie_word_embeddings=True but lm_head.weight in file = True -&gt; 311 MB dup</span>
+<span class="p">hand count (tied) = 596,049,920  ✓ = the "0.6B"</span>
+<span class="p">Qwen3-32B: 65.5 GB, 707 tensors routed across 17 shards via weight_map</span></pre>
+  </div>
+</details>
+
+<h3>When one file isn't enough — shard routing</h3>
+<!-- SHARD ROUTING SVG -->
+<div class="diagram">
+<svg width="700" height="205" viewBox="0 0 700 205">
+  <defs><marker id="arr14" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9a9aa0"/></marker></defs>
+  <text class="svg-txt-bold" x="20" y="20">model.safetensors.index.json — a name→file router (Qwen3-32B: 707 tensors, 17 shards, 65.5 GB)</text>
+  <rect class="svg-box-accent" x="20" y="40" width="240" height="140" rx="9"/>
+  <text class="svg-txt-sm" x="140" y="60" text-anchor="middle" style="font-weight:700">weight_map</text>
+  <text class="svg-txt-sm" x="140" y="82" text-anchor="middle">"model.embed_tokens…" → 00001</text>
+  <text class="svg-txt-sm" x="140" y="100" text-anchor="middle">"model.layers.0.mlp…" → 00001</text>
+  <text class="svg-txt-sm" x="140" y="118" text-anchor="middle">"model.layers.5.attn…" → 00002</text>
+  <text class="svg-txt-sm" x="140" y="136" text-anchor="middle">…</text>
+  <text class="svg-txt-sm" x="140" y="154" text-anchor="middle">"lm_head.weight" → 00017</text>
+  <line class="svg-arrow" x1="260" y1="82"  x2="330" y2="62"  marker-end="url(#arr14)"/>
+  <line class="svg-arrow" x1="260" y1="110" x2="330" y2="110" marker-end="url(#arr14)"/>
+  <line class="svg-arrow" x1="260" y1="140" x2="330" y2="158" marker-end="url(#arr14)"/>
+  <rect class="svg-box" x="335" y="40"  width="170" height="38" rx="7"/><text class="svg-txt-sm" x="420" y="64" text-anchor="middle">model-00001-of-00017</text>
+  <rect class="svg-box" x="335" y="92"  width="170" height="38" rx="7"/><text class="svg-txt-sm" x="420" y="116" text-anchor="middle">model-00002-of-00017</text>
+  <rect class="svg-box" x="335" y="144" width="170" height="38" rx="7"/><text class="svg-txt-sm" x="420" y="168" text-anchor="middle">… 00017-of-00017</text>
+  <text class="svg-txt-sm" x="545" y="64"  text-anchor="start">each shard: same</text>
+  <text class="svg-txt-sm" x="545" y="82"  text-anchor="start">8B+JSON+bytes format</text>
+  <text class="svg-txt-sm" x="545" y="116" text-anchor="start">loader: enumerate all</text>
+  <text class="svg-txt-sm" x="545" y="134" text-anchor="start">shards, route by map,</text>
+  <text class="svg-txt-sm" x="545" y="168" text-anchor="start">load in parallel</text>
+  <text class="svg-txt-sm" x="545" y="186" text-anchor="start">threads ⏭</text>
+</svg>
+<div class="cap">One level of indirection on top of what you already built: <strong>hook 1 (enumerate)</strong> consults the router, then opens each shard exactly like our single file. Nothing else changes.</div>
+</div>
+
+<div class="callout info">
+  <div class="co-title">What didn't change (the whole point)</div>
+  Six years of architecture evolution — BF16, GQA, RoPE, SwiGLU, no biases, 17-shard files — and <strong>the container format and all four loader hooks are untouched</strong>. Only the per-family <em>mapping table</em> and a dtype entry change. Learn the protocol once; every new model is a new row in a table, not a new codebase.
 </div>
 
 <div class="divider"></div>

@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inference From Scratch — Learning Journal</title>
+<style>
+  :root{
+    --bg:#fbfbfd; --card:#ffffff; --ink:#1d1d1f; --muted:#6e6e73; --faint:#86868b;
+    --accent:#4f46e5; --accent-soft:#eef2ff; --accent-line:#c7d2fe;
+    --green:#059669; --green-soft:#ecfdf5; --amber:#b45309; --amber-soft:#fffbeb;
+    --red:#dc2626; --red-soft:#fef2f2; --border:#e8e8ec; --border-strong:#d9d9de;
+    --code-bg:#f6f7f9; --mono:"Cascadia Code","SF Mono",Consolas,Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15.5px;line-height:1.65;-webkit-font-smoothing:antialiased}
+
+  /* ---------- layout ---------- */
+  .layout{display:flex;max-width:1240px;margin:0 auto;min-height:100vh}
+  aside{width:236px;flex-shrink:0;border-right:1px solid var(--border);padding:28px 20px;position:sticky;top:0;height:100vh;overflow-y:auto;background:var(--bg)}
+  main{flex:1;padding:40px 48px 120px;max-width:940px}
+
+  /* ---------- sidebar ---------- */
+  .brand{font-weight:700;font-size:15px;letter-spacing:-.02em;margin-bottom:4px}
+  .brand span{color:var(--accent)}
+  .brand-sub{font-size:11.5px;color:var(--faint);margin-bottom:26px}
+  .nav-label{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin:22px 0 8px}
+  .day-link{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;font-size:13.5px;color:var(--muted);text-decoration:none;margin-bottom:2px}
+  .day-link.active{background:var(--accent-soft);color:var(--accent);font-weight:600}
+  .day-link.locked{color:#c7c7cc;cursor:default}
+  .day-link .dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.5}
+  .sec-link{display:block;padding:4px 10px 4px 26px;font-size:12.5px;color:var(--muted);text-decoration:none;border-left:2px solid transparent;margin-left:9px}
+  .sec-link:hover{color:var(--ink)}
+  .sec-link.current{color:var(--accent);border-left-color:var(--accent)}
+
+  /* ---------- typography ---------- */
+  h1{font-size:30px;font-weight:700;letter-spacing:-.03em;line-height:1.2}
+  h2{font-size:21px;font-weight:700;letter-spacing:-.02em;margin:56px 0 6px;scroll-margin-top:24px}
+  h3{font-size:16px;font-weight:650;margin:28px 0 8px}
+  p.sub{color:var(--muted);margin-bottom:18px}
+  p{margin:10px 0}
+  strong{font-weight:650}
+  code.inline{font-family:var(--mono);font-size:.86em;background:var(--accent-soft);color:var(--accent);padding:1.5px 6px;border-radius:5px}
+  ul,ol{margin:8px 0 8px 22px}
+  li{margin:4px 0}
+  .kicker{font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+
+  /* ---------- hero ---------- */
+  .hero{padding:8px 0 26px;border-bottom:1px solid var(--border);margin-bottom:8px}
+  .badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+  .badge{font-size:11.5px;font-weight:600;padding:4px 11px;border-radius:999px;border:1px solid var(--border-strong);color:var(--muted);background:var(--card)}
+  .badge.done{background:var(--green-soft);color:var(--green);border-color:#a7f3d0}
+  .badge.doing{background:var(--amber-soft);color:var(--amber);border-color:#fde68a}
+  .badge.todo{background:var(--card);color:var(--faint)}
+
+  /* ---------- cards & callouts ---------- */
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 24px;margin:16px 0}
+  .callout{border-radius:12px;padding:14px 18px;margin:14px 0;font-size:14px;border:1px solid}
+  .callout .co-title{font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:6px}
+  .callout.info{background:var(--accent-soft);border-color:var(--accent-line);color:#3730a3}
+  .callout.trap{background:var(--red-soft);border-color:#fecaca;color:#991b1b}
+  .callout.disc{background:var(--green-soft);border-color:#a7f3d0;color:#065f46}
+  .callout.warn{background:var(--amber-soft);border-color:#fde68a;color:#92400e}
+
+  /* ---------- timeline ---------- */
+  .timeline{position:relative;margin:22px 0 8px;padding-left:26px}
+  .timeline::before{content:"";position:absolute;left:7px;top:6px;bottom:6px;width:2px;background:var(--border-strong);border-radius:2px}
+  .tl-item{position:relative;padding:0 0 18px}
+  .tl-item::before{content:"";position:absolute;left:-25px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--card);border:2.5px solid var(--faint)}
+  .tl-item.done::before{background:var(--green);border-color:var(--green)}
+  .tl-item.doing::before{background:var(--amber);border-color:var(--amber)}
+  .tl-item .tl-head{font-weight:650;font-size:14px}
+  .tl-item .tl-head .tl-tag{font-family:var(--mono);font-size:11px;color:var(--faint);margin-right:8px}
+  .tl-item .tl-body{font-size:13px;color:var(--muted)}
+
+  /* ---------- code ---------- */
+  pre{background:var(--code-bg);border:1px solid var(--border);border-radius:12px;padding:18px 20px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.7;margin:14px 0;position:relative}
+  pre .cm{color:#8b8b93;font-style:italic}
+  pre .kw{color:#af3b8e}
+  pre .st{color:#b45309}
+  pre .fn{color:#4f46e5}
+  pre .num{color:#0476c9}
+  pre .op{color:#1d1d1f}
+  .code-head{display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:11px;color:var(--faint);margin:18px 0 -6px;padding:0 4px}
+  .copy-btn{cursor:pointer;border:1px solid var(--border-strong);background:var(--card);border-radius:6px;padding:2px 10px;font-size:10.5px;font-family:var(--mono);color:var(--muted)}
+  .copy-btn:hover{color:var(--accent);border-color:var(--accent-line)}
+  pre.term{background:#16181d;color:#d7dae0;border-color:#16181d}
+  pre.term .p{color:#5eead4}
+  pre.term .dim{color:#7d8590}
+
+  /* ---------- line-by-line table ---------- */
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+  .l2l td,.l2l th{border-top:1px solid var(--border);padding:10px 12px;vertical-align:top;text-align:left}
+  .l2l th{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);border-top:none}
+  .l2l td.code-cell{font-family:var(--mono);font-size:12.5px;white-space:nowrap;color:var(--accent);width:1%;padding-right:18px}
+  .l2l tr:hover td{background:#fafafe}
+  .data th{background:#f6f6f8;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:650;padding:10px 12px;text-align:left;border-bottom:1px solid var(--border-strong)}
+  .data td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+  .data td.mono{font-family:var(--mono);font-size:12.5px}
+  .data tr:last-child td{border-bottom:none}
+
+  /* ---------- diagrams ---------- */
+  .diagram{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px 20px;margin:16px 0;display:flex;flex-direction:column;align-items:center}
+  .diagram svg{max-width:100%;height:auto}
+  .diagram .cap{font-size:12px;color:var(--faint);margin-top:14px;text-align:center;max-width:560px}
+  .svg-box{fill:#fff;stroke:#d9d9de;stroke-width:1.4}
+  .svg-box-accent{fill:#eef2ff;stroke:#a5b4fc;stroke-width:1.4}
+  .svg-box-green{fill:#ecfdf5;stroke:#6ee7b7;stroke-width:1.4}
+  .svg-box-red{fill:#fef2f2;stroke:#fca5a5;stroke-width:1.4}
+  .svg-box-amber{fill:#fffbeb;stroke:#fcd34d;stroke-width:1.4}
+  .svg-txt{font-family:var(--mono);font-size:12px;fill:#1d1d1f}
+  .svg-txt-sm{font-family:var(--mono);font-size:10.5px;fill:#6e6e73}
+  .svg-txt-bold{font-family:var(--sans);font-weight:650;font-size:12.5px;fill:#1d1d1f}
+  .svg-arrow{stroke:#9a9aa0;stroke-width:1.5;fill:none;marker-end:url(#arr)}
+  .svg-dash{stroke-dasharray:4 3}
+
+  /* ---------- math ---------- */
+  .math{font-family:var(--mono);font-size:13.5px;background:#f6f6f8;border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:12px 0;overflow-x:auto;line-height:2}
+  .math .res{color:var(--green);font-weight:700}
+  .math .hl{background:#fef3c7;padding:0 4px;border-radius:4px}
+
+  /* ---------- details ---------- */
+  details{border:1px solid var(--border);border-radius:12px;background:var(--card);margin:12px 0;overflow:hidden}
+  details summary{cursor:pointer;padding:13px 18px;font-weight:600;font-size:14px;list-style:none;display:flex;align-items:center;gap:10px}
+  details summary::-webkit-details-marker{display:none}
+  details summary::before{content:"▸";color:var(--faint);transition:transform .18s;font-size:12px}
+  details[open] summary::before{transform:rotate(90deg)}
+  details .det-body{padding:4px 20px 18px;border-top:1px solid var(--border)}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:900px){aside{display:none}main{padding:28px 20px 100px}.grid2{grid-template-columns:1fr}}
+  .divider{height:1px;background:var(--border);margin:48px 0 0}
+  .foot{color:var(--faint);font-size:12px;text-align:center;margin-top:48px}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ══════════════════════ SIDEBAR ══════════════════════ -->
+<aside>
+  <div class="brand">Inference<span>_from_scratch</span></div>
+  <div class="brand-sub">raw math → vLLM · TRT-LLM · SGLang · Dynamo</div>
+
+  <div class="nav-label">Days</div>
+  <a class="day-link active" href="#"><span class="dot"></span>Day 1 · GPT-2 raw</a>
+  <div>
+    <a class="sec-link" href="#timeline">Timeline</a>
+    <a class="sec-link" href="#part0">Part 0 · Artifacts</a>
+    <a class="sec-link" href="#formats">File formats</a>
+    <a class="sec-link" href="#part1">Part 1 · safetensors</a>
+    <a class="sec-link" href="#parser">The parser, line by line</a>
+    <a class="sec-link" href="#discoveries">4 discoveries</a>
+    <a class="sec-link" href="#parammath">Param math</a>
+    <a class="sec-link" href="#conv1d">The Conv1D trap</a>
+    <a class="sec-link" href="#proloaders">How the pros load</a>
+    <a class="sec-link" href="#anatomy">Engine loader anatomy</a>
+    <a class="sec-link" href="#exercises">Exercises</a>
+    <a class="sec-link" href="#stack">The big picture</a>
+  </div>
+  <a class="day-link locked" href="#"><span class="dot"></span>Day 2 · KV cache &amp; batching</a>
+  <a class="day-link locked" href="#"><span class="dot"></span>Day 3 · dtypes &amp; quant</a>
+  <a class="day-link locked" href="#"><span class="dot"></span>Day 4+ · GPU kernels</a>
+</aside>
+
+<!-- ══════════════════════ MAIN ══════════════════════ -->
+<main>
+
+<div class="hero">
+  <div class="kicker">Day 01 — Foundations</div>
+  <h1>GPT-2 Inference From Absolute Scratch</h1>
+  <p class="sub">Take <code class="inline">openai-community/gpt2</code> from raw files on disk to a served API — no <code class="inline">transformers</code>, no <code class="inline">safetensors</code> lib, no engine. NumPy only, because NumPy is just math.</p>
+  <div class="badges">
+    <span class="badge done">Part 0 · Artifacts</span>
+    <span class="badge done">Part 1 · safetensors ✔</span>
+    <span class="badge todo">Part 2 · BPE tokenizer</span>
+    <span class="badge todo">Part 3 · NumPy forward</span>
+    <span class="badge todo">Part 4 · Sampling</span>
+    <span class="badge todo">Part 5 · KV cache</span>
+    <span class="badge todo">Part 6 · HTTP serve</span>
+  </div>
+</div>
+
+<!-- ─────────── TIMELINE ─────────── -->
+<h2 id="timeline">The day at a glance</h2>
+<p class="sub">Eight stations. Each one maps to a subsystem you'll meet again inside vLLM/SGLang/TRT-LLM.</p>
+
+<div class="timeline">
+  <div class="tl-item done"><div class="tl-head"><span class="tl-tag">P0</span>Know your artifacts</div><div class="tl-body">config.json · vocab/merges · param count by hand · checkpoint formats</div></div>
+  <div class="tl-item done"><div class="tl-head"><span class="tl-tag">P1</span>Parse .safetensors by hand</div><div class="tl-body">8-byte length → JSON header → raw buffer → np.frombuffer · 4 discoveries</div></div>
+  <div class="tl-item"><div class="tl-head"><span class="tl-tag">P2</span>BPE tokenizer from scratch</div><div class="tl-body">byte↔unicode map · regex pre-tokenizer · merge loop · golden vectors</div></div>
+  <div class="tl-item"><div class="tl-head"><span class="tl-tag">P3</span>Forward pass in NumPy</div><div class="tl-body">LN · GELU-tanh · masked attention · residuals · weight-tied logits</div></div>
+  <div class="tl-item"><div class="tl-head"><span class="tl-tag">P4</span>Generation strategies</div><div class="tl-body">greedy · temperature · top-k · top-p → these become engine API flags</div></div>
+  <div class="tl-item"><div class="tl-head"><span class="tl-tag">P5</span>KV cache</div><div class="tl-body">the single most important optimization · tokens/sec before/after</div></div>
+  <div class="tl-item"><div class="tl-head"><span class="tl-tag">P6</span>Serve over HTTP</div><div class="tl-body">/generate endpoint · TTFT vs total latency · why batching matters</div></div>
+  <div class="tl-item"><div class="tl-head"><span class="tl-tag">P7–8</span>Error log &amp; numbers</div><div class="tl-body">break things deliberately · record baselines for every future optimization</div></div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ─────────── PART 0 ─────────── -->
+<h2 id="part0">Part 0 — Know your artifacts</h2>
+<p class="sub">A "model" is not one file. It's a contract between five artifacts.</p>
+
+<div class="card">
+<table class="data">
+  <tr><th>File</th><th>Role</th><th>Needed by</th></tr>
+  <tr><td class="mono">config.json</td><td>Architecture hyperparameters — the blueprint</td><td>forward pass</td></tr>
+  <tr><td class="mono">model.safetensors</td><td>The learned weights — 548 MB of FP32 numbers</td><td>forward pass</td></tr>
+  <tr><td class="mono">vocab.json</td><td>token string → id (50,257 entries)</td><td>tokenizer</td></tr>
+  <tr><td class="mono">merges.txt</td><td>BPE merge rules, in priority order (~50k lines)</td><td>tokenizer</td></tr>
+  <tr><td class="mono">tokenizer_config.json</td><td>Special tokens, tokenizer class hints</td><td>tokenizer</td></tr>
+</table>
+</div>
+
+<h3>The config is the forward pass's contract</h3>
+<div class="math">
+n_layer = <span class="hl">12</span>      n_head = <span class="hl">12</span>      n_embd = <span class="hl">768</span>      n_positions = <span class="hl">1024</span>
+vocab_size = <span class="hl">50257</span>   layer_norm_epsilon = 1e-5   activation = <span class="hl">"gelu_new"</span> (tanh approx!)
+
+head_dim = n_embd / n_head = 768 / 12 = <span class="res">64</span>
+mlp_hidden = 4 × n_embd = <span class="res">3072</span>   ← the universal 4× rule
+qkv_out    = 3 × n_embd = <span class="res">2304</span>   ← why c_attn outputs 2304
+</div>
+
+<h3 id="formats">Checkpoint file formats — the landscape</h3>
+<p class="sub">You'll implement #1 today. Know all six — you'll meet every one of them in production.</p>
+
+<div class="card">
+<table class="data">
+  <tr><th>Format</th><th>What it physically is</th><th>Pros</th><th>Cons</th></tr>
+  <tr><td class="mono">.safetensors</td><td>8-byte length + JSON dir + raw bytes</td><td>Zero-copy mmap · no code execution · fast parallel load</td><td>Weights only, no optimizer state</td></tr>
+  <tr><td class="mono">pytorch_model.bin</td><td>Pickled state_dict inside a ZIP</td><td>Native torch</td><td><strong>Arbitrary code execution on load</strong> · slow · needs torch</td></tr>
+  <tr><td class="mono">.gguf</td><td>llama.cpp format: metadata + quantized tensors, self-contained</td><td>CPU-friendly · quantization built in · mmap</td><td>Mostly llama.cpp ecosystem · needs conversion</td></tr>
+  <tr><td class="mono">.onnx</td><td>A computation <em>graph</em> (protobuf), not just weights</td><td>Portable across runtimes (ORT, TensorRT)</td><td>Opset compatibility pain · rigid</td></tr>
+  <tr><td class="mono">.ckpt / .pt</td><td>Generic pickle checkpoint</td><td>Flexible</td><td>Same pickle dangers</td></tr>
+  <tr><td class="mono">sharded safetensors</td><td><code class="inline">model-0000X-of-0000Y</code> + <code class="inline">index.json</code> mapping name→file</td><td>Required when weights exceed single-file limits (70B+)</td><td>Extra index-resolution step</td></tr>
+</table>
+</div>
+
+<div class="callout info">
+  <div class="co-title">Why engines prefer safetensors</div>
+  mmap the file → tensors become pageable memory → load lazily and in parallel → no pickle means no code execution. vLLM's fast loader is built on exactly this property.
+</div>
+
+<div class="divider"></div>
+
+<!-- ─────────── PART 1 ─────────── -->
+<h2 id="part1">Part 1 — The .safetensors format, dissected</h2>
+<p class="sub">The entire format fits in one diagram. No compression, no code, no magic.</p>
+
+<!-- DIAGRAM 1: file anatomy -->
+<div class="diagram">
+<svg width="620" height="240" viewBox="0 0 620 240">
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="#9a9aa0"/>
+    </marker>
+  </defs>
+  <!-- three regions -->
+  <rect class="svg-box-amber" x="40" y="30" width="120" height="120" rx="10"/>
+  <text class="svg-txt-bold" x="100" y="60" text-anchor="middle">8 bytes</text>
+  <text class="svg-txt-sm" x="100" y="82" text-anchor="middle">uint64 LE</text>
+  <text class="svg-txt-sm" x="100" y="98" text-anchor="middle">N = 14283</text>
+  <text class="svg-txt-sm" x="100" y="120" text-anchor="middle">"how big is</text>
+  <text class="svg-txt-sm" x="100" y="134" text-anchor="middle">the index?"</text>
+
+  <rect class="svg-box-accent" x="170" y="30" width="240" height="120" rx="10"/>
+  <text class="svg-txt-bold" x="290" y="58" text-anchor="middle">JSON header — N bytes</text>
+  <text class="svg-txt-sm" x="290" y="80" text-anchor="middle">{ "h.0.attn.c_attn.weight":</text>
+  <text class="svg-txt-sm" x="290" y="96" text-anchor="middle">    { dtype, shape,</text>
+  <text class="svg-txt-sm" x="290" y="112" text-anchor="middle">      data_offsets }, ... }</text>
+  <text class="svg-txt-sm" x="290" y="134" text-anchor="middle">"where is everything?"</text>
+
+  <rect class="svg-box-green" x="420" y="30" width="160" height="120" rx="10"/>
+  <text class="svg-txt-bold" x="500" y="58" text-anchor="middle">raw buffer</text>
+  <text class="svg-txt-sm" x="500" y="80" text-anchor="middle">FP32 numbers,</text>
+  <text class="svg-txt-sm" x="500" y="96" text-anchor="middle">back to back</text>
+  <text class="svg-txt-sm" x="500" y="122" text-anchor="middle">"the actual data"</text>
+
+  <!-- byte ruler -->
+  <text class="svg-txt-sm" x="40" y="190">byte 0</text>
+  <text class="svg-txt-sm" x="130" y="190">byte 8</text>
+  <text class="svg-txt-sm" x="330" y="190">byte 8+N ← buffer starts here</text>
+  <line x1="40" y1="172" x2="580" y2="172" stroke="#d9d9de" stroke-width="1.4"/>
+  <line x1="40" y1="168" x2="40" y2="176" stroke="#9a9aa0" stroke-width="1.4"/>
+  <line x1="160" y1="168" x2="160" y2="176" stroke="#9a9aa0" stroke-width="1.4"/>
+  <line x1="410" y1="168" x2="410" y2="176" stroke="#9a9aa0" stroke-width="1.4"/>
+  <line x1="580" y1="168" x2="580" y2="176" stroke="#9a9aa0" stroke-width="1.4"/>
+  <text class="svg-txt-bold" x="310" y="222" text-anchor="middle" fill="#4f46e5">absolute file offset = 8 + N + begin</text>
+</svg>
+<div class="cap">The whole spec: header-length prefix → JSON directory → raw tensor bytes. <strong>data_offsets are relative to the buffer start</strong>, not the file. That single detail is the classic hand-parser bug.</div>
+</div>
+
+<h3>One header entry, dissected</h3>
+<div class="card">
+<pre>{
+  <span class="st">"h.0.attn.c_attn.weight"</span>: {
+    <span class="st">"dtype"</span>:        <span class="st">"F32"</span>,          <span class="cm">// each number = 4 bytes</span>
+    <span class="st">"shape"</span>:        [<span class="num">768</span>, <span class="num">2304</span>],   <span class="cm">// 1,769,472 elements</span>
+    <span class="st">"data_offsets"</span>: [<span class="num">b</span>, <span class="num">e</span>]       <span class="cm">// e − b = 7,077,888 bytes</span>
+  }
+}</pre>
+<div class="math">invariant:  <span class="hl">elements × bytes-per-element = e − b</span>
+1,769,472 × 4 = <span class="res">7,077,888 ✓</span>   ← always check this; it catches corrupt parses instantly</div>
+</div>
+
+<h3 id="parser">The parser — full code</h3>
+<div class="code-head"><span>code/inspect_safetensors.py — core loader</span><button class="copy-btn" data-copy="parser">copy</button></div>
+<pre id="code-parser"><span class="kw">import</span> json, struct
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+
+<span class="kw">def</span> <span class="fn">load_safetensors</span>(path):
+    <span class="kw">with</span> <span class="fn">open</span>(path, <span class="st">"rb"</span>) <span class="kw">as</span> f:
+        (n,) = struct.<span class="fn">unpack</span>(<span class="st">"&lt;Q"</span>, f.<span class="fn">read</span>(<span class="num">8</span>))      <span class="cm"># ① header length</span>
+        header = json.<span class="fn">loads</span>(f.<span class="fn">read</span>(n).<span class="fn">decode</span>(<span class="st">"utf-8"</span>))  <span class="cm"># ② JSON directory</span>
+        buffer = f.<span class="fn">read</span>()                             <span class="cm"># ③ the raw buffer</span>
+
+    metadata = header.<span class="fn">pop</span>(<span class="st">"__metadata__"</span>, <span class="kw">None</span>)     <span class="cm"># ④ not a tensor!</span>
+
+    tensors = {}
+    <span class="kw">for</span> name, info <span class="kw">in</span> header.items():
+        begin, end = info[<span class="st">"data_offsets"</span>]            <span class="cm"># ⑤ relative to buffer</span>
+        raw  = buffer[begin:end]                      <span class="cm"># ⑥ slice the bytes</span>
+        arr  = np.<span class="fn">frombuffer</span>(raw, dtype=DTYPE_MAP[info[<span class="st">"dtype"</span>]])  <span class="cm"># ⑦ zero-copy view</span>
+        tensors[name] = arr.<span class="fn">reshape</span>(info[<span class="st">"shape"</span>])    <span class="cm"># ⑧ interpret as matrix</span>
+    <span class="kw">return</span> tensors, metadata</pre>
+
+<h3>…line by line</h3>
+<div class="card">
+<table class="l2l">
+  <tr><th>Line</th><th>What it does</th><th>Why it matters</th></tr>
+  <tr>
+    <td class="code-cell">① struct.unpack("&lt;Q", read(8))</td>
+    <td>Reads 8 raw bytes, interprets as <strong>u</strong>nsigned 64-bit int, little-endian (<code class="inline">&lt;</code> = LE, <code class="inline">Q</code> = u64). The trailing comma in <code class="inline">(n,)</code> unpacks the 1-tuple.</td>
+    <td>This is the only framing the format has. Get endianness wrong and N is astronomically wrong → instant garbage.</td>
+  </tr>
+  <tr>
+    <td class="code-cell">② json.loads(read(n))</td>
+    <td>Reads exactly N bytes → UTF-8 string → Python dict.</td>
+    <td>bytes → text → dict. Three representations of the same header; know which one you're holding at each step.</td>
+  </tr>
+  <tr>
+    <td class="code-cell">③ buffer = f.read()</td>
+    <td>Everything after the header = the tensor warehouse.</td>
+    <td>Because we already consumed 8+N bytes, <code class="inline">buffer[0]</code> <em>is</em> file offset 8+N. That's why offsets "just work".</td>
+  </tr>
+  <tr>
+    <td class="code-cell">④ header.pop("__metadata__")</td>
+    <td>Removes the special non-tensor entry (<code class="inline">{"format": "pt"}</code> here) so the loop only sees real tensors.</td>
+    <td>Forget this and you'll try to "reshape" a metadata dict. Classic crash #1.</td>
+  </tr>
+  <tr>
+    <td class="code-cell">⑤ data_offsets</td>
+    <td>[begin, end) byte range of this tensor inside the buffer.</td>
+    <td>Relative to <strong>buffer start</strong>, not file start. Absolute = 8 + N + begin.</td>
+  </tr>
+  <tr>
+    <td class="code-cell">⑥ buffer[begin:end]</td>
+    <td>Python slice of bytes → a <em>copy</em> of this tensor's byte range.</td>
+    <td>Slicing bytes copies; that's fine at this scale. (memmap version = exercise.)</td>
+  </tr>
+  <tr>
+    <td class="code-cell">⑦ np.frombuffer(raw, F32)</td>
+    <td>Reinterprets each 4-byte group as one float32. <strong>Zero-copy</strong> — wraps the bytes, doesn't transform them.</td>
+    <td>Bytes aren't numbers until a dtype gives them meaning. This is the single most systems-y idea of the day.</td>
+  </tr>
+  <tr>
+    <td class="code-cell">⑧ reshape(shape)</td>
+    <td>1-D array of 1,769,472 floats → (768, 2304) matrix. A view, still no copy.</td>
+    <td>The matrix doesn't exist on disk — only bytes + the <em>metadata's claim</em> about shape. Shape is interpretation.</td>
+  </tr>
+</table>
+</div>
+
+<!-- DIAGRAM 2: parse pipeline -->
+<div class="diagram">
+<svg width="700" height="120" viewBox="0 0 700 120">
+  <defs><marker id="arr2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9a9aa0"/></marker></defs>
+  <rect class="svg-box" x="10" y="35" width="88" height="46" rx="9"/><text class="svg-txt-sm" x="54" y="54" text-anchor="middle">raw file</text><text class="svg-txt-sm" x="54" y="68" text-anchor="middle">bytes</text>
+  <line class="svg-arrow" x1="98" y1="58" x2="118" y2="58" marker-end="url(#arr2)"/>
+  <rect class="svg-box-amber" x="120" y="35" width="92" height="46" rx="9"/><text class="svg-txt-sm" x="166" y="54" text-anchor="middle">8 bytes</text><text class="svg-txt-sm" x="166" y="68" text-anchor="middle">→ N</text>
+  <line class="svg-arrow" x1="212" y1="58" x2="232" y2="58" marker-end="url(#arr2)"/>
+  <rect class="svg-box-accent" x="234" y="35" width="96" height="46" rx="9"/><text class="svg-txt-sm" x="282" y="54" text-anchor="middle">N bytes</text><text class="svg-txt-sm" x="282" y="68" text-anchor="middle">→ JSON</text>
+  <line class="svg-arrow" x1="330" y1="58" x2="350" y2="58" marker-end="url(#arr2)"/>
+  <rect class="svg-box" x="352" y="35" width="100" height="46" rx="9"/><text class="svg-txt-sm" x="402" y="54" text-anchor="middle">dict of</text><text class="svg-txt-sm" x="402" y="68" text-anchor="middle">metadata</text>
+  <line class="svg-arrow" x1="452" y1="58" x2="472" y2="58" marker-end="url(#arr2)"/>
+  <rect class="svg-box" x="474" y="35" width="102" height="46" rx="9"/><text class="svg-txt-sm" x="525" y="54" text-anchor="middle">frombuffer</text><text class="svg-txt-sm" x="525" y="68" text-anchor="middle">(zero-copy)</text>
+  <line class="svg-arrow" x1="576" y1="58" x2="596" y2="58" marker-end="url(#arr2)"/>
+  <rect class="svg-box-green" x="598" y="35" width="92" height="46" rx="9"/><text class="svg-txt-sm" x="644" y="54" text-anchor="middle">reshape →</text><text class="svg-txt-sm" x="644" y="68" text-anchor="middle">ndarray</text>
+</svg>
+<div class="cap">Parse pipeline. Total: ~15 lines of real code. You can now parse any HF checkpoint on earth.</div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ─────────── DISCOVERIES ─────────── -->
+<h2 id="discoveries">The 4 discoveries (verified output)</h2>
+<p class="sub">Each one is a permanent lesson about how checkpoints and engines really work.</p>
+
+<h3>Discovery ① — 160 tensors, not 148: checkpoints contain junk</h3>
+<div class="callout disc">
+  <div class="co-title">✔ Found in the wild</div>
+  The file holds <strong>160</strong> tensors. 12 of them — <code class="inline">h.X.attn.bias</code>, shape (1,1,1024,1024), 4 MB each — are <strong>precomputed causal-mask buffers</strong>, not parameters. That's <strong>48 MB (~9%) of dead weight</strong> in a 548 MB file.
+</div>
+<p>HF saves registered buffers alongside weights, so the mask got serialized too. vLLM / TRT-LLM / SGLang <strong>skip tensors like this at load time</strong> and build masks inside their kernels. Reading a checkpoint professionally means knowing what to ignore.</p>
+
+<h3>Discovery ② — the "124M model" has 137M values on disk</h3>
+<div class="math" id="parammath">
+values on disk              = <span class="hl">137,022,720</span>
+mask buffers (not params)   = 12 × 1,024 × 1,024 = 12,582,912
+─────────────────────────────────────────────────────────────
+real parameters             = <span class="res">124,439,808</span>   ← the "124M" in GPT-2
+
+hand-derivation from config (the checksum):
+  wte      50,257 × 768   =  38,597,376
+  wpe       1,024 × 768   =     786,432
+  blocks   12 × 7,087,872 =  85,054,464
+  ln_f              2×768 =       1,536
+                          ─────────────
+                            <span class="res">124,439,808 ✓ exact match</span>
+
+memory identity: 137,022,720 × 4 bytes = <span class="res">548,090,880 B = exact file size ✓</span></div>
+
+<!-- DIAGRAM 3: param bar chart -->
+<div class="diagram">
+<svg width="640" height="210" viewBox="0 0 640 210">
+  <text class="svg-txt-bold" x="20" y="22">Where the 137M values live</text>
+  <!-- bars: scale 85M -> 340px -->
+  <rect x="150" y="42"  width="340" height="26" rx="5" fill="#4f46e5"/>
+  <text class="svg-txt-sm" x="142" y="59" text-anchor="end">12 blocks</text>
+  <text class="svg-txt-sm" x="498" y="59">85.05M</text>
+
+  <rect x="150" y="78"  width="154" height="26" rx="5" fill="#818cf8"/>
+  <text class="svg-txt-sm" x="142" y="95" text-anchor="end">wte (tokens)</text>
+  <text class="svg-txt-sm" x="312" y="95">38.60M</text>
+
+  <rect x="150" y="114" width="50" height="26" rx="5" fill="#fca5a5"/>
+  <text class="svg-txt-sm" x="142" y="131" text-anchor="end">mask junk ×12</text>
+  <text class="svg-txt-sm" x="208" y="131">12.58M — skip at load</text>
+
+  <rect x="150" y="150" width="4" height="26" rx="2" fill="#c7d2fe"/>
+  <text class="svg-txt-sm" x="142" y="167" text-anchor="end">wpe + ln_f</text>
+  <text class="svg-txt-sm" x="162" y="167">0.79M</text>
+</svg>
+<div class="cap">One embedding matrix (<code style="font-family:var(--mono)">wte</code>) ≈ 45% of a block stack's size — and it doubles as the output projection (weight tying, Part 3).</div>
+</div>
+
+<h3>Discovery ③ — the names ARE the architecture</h3>
+<div class="card">
+<pre><span class="cm"># layer 0 inventory — this is the transformer block, as a wiring diagram</span>
+h.<span class="num">0</span>.ln_1.{weight,bias}      (<span class="num">768</span>,)          <span class="cm"># LayerNorm #1</span>
+h.<span class="num">0</span>.attn.c_attn.weight     (<span class="num">768</span>, <span class="num">2304</span>)   <span class="cm"># fused Q|K|V projection  ← one matmul, not three</span>
+h.<span class="num">0</span>.attn.c_attn.bias       (<span class="num">2304</span>,)
+h.<span class="num">0</span>.attn.c_proj.weight     (<span class="num">768</span>, <span class="num">768</span>)    <span class="cm"># attention output projection</span>
+h.<span class="num">0</span>.ln_2.{weight,bias}      (<span class="num">768</span>,)          <span class="cm"># LayerNorm #2</span>
+h.<span class="num">0</span>.mlp.c_fc.weight        (<span class="num">768</span>, <span class="num">3072</span>)   <span class="cm"># MLP up: hidden = 4× d_model</span>
+h.<span class="num">0</span>.mlp.c_proj.weight      (<span class="num">3072</span>, <span class="num">768</span>)   <span class="cm"># MLP down</span></pre>
+</div>
+
+<!-- DIAGRAM 4: fused QKV -->
+<div class="diagram">
+<svg width="620" height="200" viewBox="0 0 620 200">
+  <defs><marker id="arr3" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9a9aa0"/></marker></defs>
+  <text class="svg-txt-bold" x="20" y="22">c_attn: three projections fused into one matmul</text>
+  <!-- input -->
+  <rect class="svg-box" x="20" y="70" width="90" height="60" rx="9"/>
+  <text class="svg-txt-sm" x="65" y="95" text-anchor="middle">x</text>
+  <text class="svg-txt-sm" x="65" y="112" text-anchor="middle">(seq, 768)</text>
+  <line class="svg-arrow" x1="110" y1="100" x2="140" y2="100" marker-end="url(#arr3)"/>
+  <!-- big matrix split -->
+  <rect class="svg-box-accent" x="142" y="52" width="96" height="96" rx="6"/>
+  <rect class="svg-box-accent" x="238" y="52" width="96" height="96" rx="6" style="fill:#e0e7ff"/>
+  <rect class="svg-box-accent" x="334" y="52" width="96" height="96" rx="6" style="fill:#c7d2fe"/>
+  <text class="svg-txt-bold" x="190" y="95" text-anchor="middle">Q</text>
+  <text class="svg-txt-sm" x="190" y="112" text-anchor="middle">768 cols</text>
+  <text class="svg-txt-bold" x="286" y="95" text-anchor="middle">K</text>
+  <text class="svg-txt-sm" x="286" y="112" text-anchor="middle">768 cols</text>
+  <text class="svg-txt-bold" x="382" y="95" text-anchor="middle">V</text>
+  <text class="svg-txt-sm" x="382" y="112" text-anchor="middle">768 cols</text>
+  <text class="svg-txt-sm" x="286" y="44" text-anchor="middle">weight (768, 2304)  —  2304 = 3 × 768</text>
+  <line class="svg-arrow" x1="430" y1="100" x2="460" y2="100" marker-end="url(#arr3)"/>
+  <rect class="svg-box-green" x="462" y="70" width="130" height="60" rx="9"/>
+  <text class="svg-txt-sm" x="527" y="95" text-anchor="middle">(seq, 2304)</text>
+  <text class="svg-txt-sm" x="527" y="112" text-anchor="middle">split → Q K V</text>
+  <text class="svg-txt-sm" x="310" y="180" text-anchor="middle">vLLM does the identical fusion for Llama: qkv_proj</text>
+</svg>
+<div class="cap">Weight fusion is not an engine trick — it's already in the checkpoint. Engines just exploit it harder.</div>
+</div>
+
+<h3>Discovery ④ — the Conv1D trap</h3>
+<div class="callout trap" id="conv1d">
+  <div class="co-title">⚠ Error case #1 — caught live</div>
+  GPT-2 stores linear weights as <strong>(in, out)</strong> — the transpose of PyTorch's <code class="inline">nn.Linear</code> convention (out, in). Muscle memory says <code class="inline">x @ W.T</code>. The shapes refuse.
+</div>
+
+<div class="grid2">
+<div class="diagram">
+<svg width="290" height="150" viewBox="0 0 290 150">
+  <text class="svg-txt-bold" x="12" y="20" fill="#991b1b">✗ x @ W.T — the nn.Linear habit</text>
+  <rect class="svg-box" x="12" y="42" width="86" height="40" rx="7"/><text class="svg-txt-sm" x="55" y="66" text-anchor="middle">x (4, 768)</text>
+  <text class="svg-txt" x="108" y="66">@</text>
+  <rect class="svg-box-red" x="126" y="42" width="110" height="40" rx="7"/><text class="svg-txt-sm" x="181" y="66" text-anchor="middle">W.T (2304, 768)</text>
+  <text class="svg-txt-sm" x="20" y="112" fill="#991b1b">inner dims: 768 vs 2304 →</text>
+  <text class="svg-txt-sm" x="20" y="130" fill="#991b1b">ValueError: matmul mismatch</text>
+</svg>
+</div>
+<div class="diagram">
+<svg width="290" height="150" viewBox="0 0 290 150">
+  <text class="svg-txt-bold" x="12" y="20" fill="#065f46">✓ x @ W — Conv1D layout</text>
+  <rect class="svg-box" x="12" y="42" width="86" height="40" rx="7"/><text class="svg-txt-sm" x="55" y="66" text-anchor="middle">x (4, 768)</text>
+  <text class="svg-txt" x="108" y="66">@</text>
+  <rect class="svg-box-green" x="126" y="42" width="104" height="40" rx="7"/><text class="svg-txt-sm" x="178" y="66" text-anchor="middle">W (768, 2304)</text>
+  <text class="svg-txt-sm" x="20" y="112" fill="#065f46">inner dims: 768 = 768 ✓</text>
+  <text class="svg-txt-sm" x="20" y="130" fill="#065f46">→ out (4, 2304): fused QKV</text>
+</svg>
+</div>
+</div>
+
+<div class="callout warn">
+  <div class="co-title">The dangerous variant</div>
+  <code class="inline">c_attn</code> is (768, 2304) so a wrong transpose fails loudly. But <code class="inline">c_proj</code> is (768, 768) — <strong>square</strong>. A wrong transpose there multiplies fine and produces silent garbage. GPT-2-specific too: Llama-family checkpoints use plain Linear conventions. Log both in <code class="inline">notes/errors.md</code>.
+</div>
+
+<details>
+  <summary>Verified terminal output (full run)</summary>
+  <div class="det-body">
+<pre class="term"><span class="p">header size N = 14283 bytes</span>
+<span class="p">metadata      = {'format': 'pt'}</span>
+<span class="p">tensor count  = 160</span>
+<span class="dim">… 148 parameter tensors + 12 mask buffers …</span>
+<span class="p">total tensor bytes = 548,090,880</span>
+<span class="p">total parameters   = 137,022,720  (~137.0M)</span>
+<span class="p">FP32 memory check  = 548 MB (params × 4 bytes = file size ✓)</span>
+<span class="p">x @ W.T  → ValueError: matmul dimension mismatch (2304 vs 768)</span>
+<span class="p">x @ W    → ok, out shape (4, 2304)</span></pre>
+  </div>
+</details>
+
+<div class="divider"></div>
+
+<!-- ─────────── PRO LOADERS ─────────── -->
+<h2 id="proloaders">How the world actually loads weights</h2>
+<p class="sub">Nobody in production writes <code class="inline">buffer = f.read()</code>. Our parser is <strong>level 0</strong> of a ladder — every rung above is the same format, loaded more lazily. The format barely changes; the <em>laziness</em> is the engineering.</p>
+
+<!-- LADDER DIAGRAM -->
+<div class="diagram">
+<svg width="700" height="268" viewBox="0 0 700 268">
+  <defs><marker id="arr5" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#4f46e5"/></marker></defs>
+  <text class="svg-txt-bold" x="20" y="20">The laziness ladder</text>
+  <!-- L0 -->
+  <rect class="svg-box-accent" x="25" y="196" width="100" height="34" rx="7" style="stroke:#4f46e5;stroke-width:2"/>
+  <text class="svg-txt-sm" x="75" y="210" text-anchor="middle" style="font-weight:700">L0 · read() all</text>
+  <text class="svg-txt-sm" x="75" y="223" text-anchor="middle">file → RAM</text>
+  <!-- L1 -->
+  <rect class="svg-box" x="135" y="172" width="100" height="58" rx="7"/>
+  <text class="svg-txt-sm" x="185" y="186" text-anchor="middle" style="font-weight:700">L1 · mmap</text>
+  <text class="svg-txt-sm" x="185" y="200" text-anchor="middle">zero-copy</text>
+  <text class="svg-txt-sm" x="185" y="213" text-anchor="middle">views</text>
+  <!-- L2 -->
+  <rect class="svg-box" x="245" y="148" width="100" height="82" rx="7"/>
+  <text class="svg-txt-sm" x="295" y="162" text-anchor="middle" style="font-weight:700">L2 · lazy</text>
+  <text class="svg-txt-sm" x="295" y="176" text-anchor="middle">get_tensor /</text>
+  <text class="svg-txt-sm" x="295" y="189" text-anchor="middle">get_slice</text>
+  <text class="svg-txt-sm" x="295" y="202" text-anchor="middle">on demand</text>
+  <!-- L3 -->
+  <rect class="svg-box" x="355" y="124" width="100" height="106" rx="7"/>
+  <text class="svg-txt-sm" x="405" y="138" text-anchor="middle" style="font-weight:700">L3 · sharded</text>
+  <text class="svg-txt-sm" x="405" y="152" text-anchor="middle">index.json</text>
+  <text class="svg-txt-sm" x="405" y="165" text-anchor="middle">routing +</text>
+  <text class="svg-txt-sm" x="405" y="178" text-anchor="middle">parallel</text>
+  <text class="svg-txt-sm" x="405" y="191" text-anchor="middle">threads</text>
+  <!-- L4 -->
+  <rect class="svg-box" x="465" y="100" width="100" height="130" rx="7"/>
+  <text class="svg-txt-sm" x="515" y="114" text-anchor="middle" style="font-weight:700">L4 · TP slice</text>
+  <text class="svg-txt-sm" x="515" y="128" text-anchor="middle">at load · or</text>
+  <text class="svg-txt-sm" x="515" y="141" text-anchor="middle">stream straight</text>
+  <text class="svg-txt-sm" x="515" y="154" text-anchor="middle">to GPU VRAM</text>
+  <!-- L5 -->
+  <rect class="svg-box-green" x="575" y="76" width="100" height="154" rx="7"/>
+  <text class="svg-txt-sm" x="625" y="90" text-anchor="middle" style="font-weight:700">L5 · engine</text>
+  <text class="svg-txt-sm" x="625" y="104" text-anchor="middle">precompiled</text>
+  <text class="svg-txt-sm" x="625" y="117" text-anchor="middle">.plan — no</text>
+  <text class="svg-txt-sm" x="625" y="130" text-anchor="middle">weight parsing</text>
+  <text class="svg-txt-sm" x="625" y="143" text-anchor="middle">at serve time</text>
+  <!-- markers -->
+  <line x1="75" y1="160" x2="75" y2="190" class="svg-arrow" marker-end="url(#arr5)" style="stroke:#4f46e5"/>
+  <text class="svg-txt-sm" x="75" y="152" text-anchor="middle" style="fill:#4f46e5;font-weight:700">YOU, today</text>
+  <text class="svg-txt-sm" x="405" y="114" text-anchor="middle" style="fill:#059669;font-weight:700">HF transformers</text>
+  <text class="svg-txt-sm" x="515" y="90" text-anchor="middle" style="fill:#059669;font-weight:700">vLLM / SGLang</text>
+  <text class="svg-txt-sm" x="625" y="66" text-anchor="middle" style="fill:#059669;font-weight:700">TRT-LLM</text>
+  <!-- baseline -->
+  <line x1="20" y1="232" x2="680" y2="232" stroke="#d9d9de" stroke-width="1.4"/>
+  <text class="svg-txt-sm" x="350" y="254" text-anchor="middle">RAM touched per load → less&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;cold-start time → shorter&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;GPU idle during load → none</text>
+</svg>
+<div class="cap">Same bytes, same JSON header at every rung. What changes is <strong>when</strong> data moves and <strong>whose</strong> memory it lands in.</div>
+</div>
+
+<h3>Rung 1–2 · What the official <code class="inline">safetensors</code> library does</h3>
+<div class="code-head"><span>the library way — Rust core, mmap'd, lazy</span><button class="copy-btn" data-copy="pro">copy</button></div>
+<pre id="code-pro"><span class="kw">from</span> safetensors <span class="kw">import</span> safe_open          <span class="cm"># Rust core (memmap2), not Python</span>
+
+<span class="kw">with</span> <span class="fn">safe_open</span>(<span class="st">"models/model.safetensors"</span>, framework=<span class="st">"pt"</span>) <span class="kw">as</span> f:
+    f.<span class="fn">keys</span>()                          <span class="cm"># ① header only — instant, no data read</span>
+    w = f.<span class="fn">get_tensor</span>(<span class="st">"wte.weight"</span>)      <span class="cm"># ② mmap'd view → ONE tensor materialized</span>
+    s = f.<span class="fn">get_slice</span>(<span class="st">"wte.weight"</span>)       <span class="cm"># ③ lazy slicer: read PART of a tensor</span>
+    s[:, :<span class="num">384</span>]                          <span class="cm">#    ← how tensor-parallel shards load</span></pre>
+<ul>
+  <li><strong>mmap, not read:</strong> the file is mapped into virtual memory; tensor bytes are <em>OS page-cache pages</em>, faulted in only when touched. "Loading" returns instantly.</li>
+  <li><strong>Zero-copy:</strong> the torch/numpy tensor points at those pages directly — no intermediate buffer, no Python loop over tensors.</li>
+  <li><strong>Validated:</strong> header size capped (100 MB), offsets bounds-checked — pickle's code-execution hole designed away.</li>
+</ul>
+
+<!-- MMAP DIAGRAM -->
+<div class="diagram">
+<svg width="700" height="185" viewBox="0 0 700 185">
+  <defs><marker id="arr6" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9a9aa0"/></marker></defs>
+  <rect class="svg-box" x="20" y="55" width="160" height="76" rx="9"/>
+  <text class="svg-txt-bold" x="100" y="80" text-anchor="middle">disk</text>
+  <text class="svg-txt-sm" x="100" y="98" text-anchor="middle">model.safetensors</text>
+  <text class="svg-txt-sm" x="100" y="114" text-anchor="middle">548 MB</text>
+
+  <rect class="svg-box-amber" x="265" y="55" width="170" height="76" rx="9"/>
+  <text class="svg-txt-bold" x="350" y="80" text-anchor="middle">OS page cache (RAM)</text>
+  <text class="svg-txt-sm" x="350" y="98" text-anchor="middle">only pages you touch</text>
+  <text class="svg-txt-sm" x="350" y="114" text-anchor="middle">OS may evict freely</text>
+
+  <rect class="svg-box-accent" x="520" y="55" width="160" height="76" rx="9"/>
+  <text class="svg-txt-bold" x="600" y="80" text-anchor="middle">your process</text>
+  <text class="svg-txt-sm" x="600" y="98" text-anchor="middle">tensor = pointer into</text>
+  <text class="svg-txt-sm" x="600" y="114" text-anchor="middle">page cache (zero-copy)</text>
+
+  <line class="svg-arrow" x1="180" y1="78" x2="260" y2="78" marker-end="url(#arr6)"/>
+  <text class="svg-txt-sm" x="220" y="68" text-anchor="middle">page fault on</text>
+  <text class="svg-txt-sm" x="220" y="122" text-anchor="middle">first touch</text>
+  <line class="svg-arrow" x1="435" y1="93" x2="515" y2="93" marker-end="url(#arr6)"/>
+  <text class="svg-txt-sm" x="475" y="83" text-anchor="middle">mmap()</text>
+
+  <text class="svg-txt-sm" x="350" y="165" text-anchor="middle">a 140 GB model "loads" on 16 GB RAM — you only ever fault in what you actually use</text>
+</svg>
+<div class="cap">Why engines love this format: the JSON header you parsed by hand is the <em>only</em> eager read. Everything else is page faults.</div>
+</div>
+
+<h3>Rungs 3–5 · Who loads what, and how</h3>
+<div class="card">
+<table class="data">
+  <tr><th>Consumer</th><th>On-disk format</th><th>Load mechanism</th><th>Signature trick</th></tr>
+  <tr>
+    <td class="mono">HF transformers<br><span style="color:var(--faint)">from_pretrained</span></td>
+    <td class="mono">safetensors shards + index.json</td>
+    <td>index routes tensor-name → shard file; threads load shards in parallel</td>
+    <td>instantiate model on the <strong>meta device</strong> (shapes, no storage) → then fill — no double RAM</td>
+  </tr>
+  <tr>
+    <td class="mono">vLLM</td>
+    <td class="mono">safetensors (default), gguf, others</td>
+    <td><code class="inline">safe_open</code> per shard, lazy per-tensor reads; each TP rank slices only its rows/cols at load</td>
+    <td><strong>skips non-parameter keys</strong> (our <code class="inline">attn.bias</code>!), remaps + fuses names (<code class="inline">q,k,v → qkv_proj</code>); optional GPU-direct loaders: <code class="inline">fastsafetensors</code>, <code class="inline">runai_streamer</code>, <code class="inline">tensorizer</code>, <code class="inline">sharded_state</code> snapshots</td>
+  </tr>
+  <tr>
+    <td class="mono">SGLang</td>
+    <td class="mono">safetensors</td>
+    <td>same loader lineage as vLLM</td>
+    <td>— (the runtimes differ; loading barely does)</td>
+  </tr>
+  <tr>
+    <td class="mono">TRT-LLM</td>
+    <td class="mono">anything → <strong>engine .plan</strong></td>
+    <td><em>offline</em> <code class="inline">trtllm-build</code>: fuse ops, quantize, autotune kernels, bake weights into the engine</td>
+    <td>at serve time there is <strong>no weight parsing at all</strong> — mmap the plan, run. Parse cost paid once at build.</td>
+  </tr>
+  <tr>
+    <td class="mono">llama.cpp</td>
+    <td class="mono">GGUF</td>
+    <td>mmap; quantized tensors (Q4_K…) stay as disk pages</td>
+    <td>dequant <em>inside</em> the compute kernel — weights never exist in FP32 in RAM</td>
+  </tr>
+  <tr>
+    <td class="mono">ONNX Runtime</td>
+    <td class="mono">.onnx (protobuf graph ± external weights)</td>
+    <td>parse graph proto → optimize → hand to execution provider</td>
+    <td>the file stores the <em>computation graph</em>, not just tensors</td>
+  </tr>
+  <tr>
+    <td class="mono">MLX (Apple)</td>
+    <td class="mono">safetensors / gguf</td>
+    <td>mmap into unified memory</td>
+    <td>CPU↔GPU same memory — zero-copy by hardware</td>
+  </tr>
+</table>
+</div>
+
+<!-- TP SLICE DIAGRAM -->
+<div class="diagram">
+<svg width="700" height="185" viewBox="0 0 700 185">
+  <defs><marker id="arr7" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9a9aa0"/></marker></defs>
+  <text class="svg-txt-bold" x="20" y="20">Rung 4 — tensor-parallel slice-at-load</text>
+  <rect class="svg-box" x="20" y="45" width="150" height="110" rx="9"/>
+  <text class="svg-txt-sm" x="95" y="65" text-anchor="middle">one file on disk</text>
+  <text class="svg-txt-sm" x="95" y="85" text-anchor="middle">wte.weight</text>
+  <text class="svg-txt-sm" x="95" y="102" text-anchor="middle">(50257 × 768)</text>
+  <rect x="40" y="115" width="110" height="14" rx="3" fill="#c7d2fe"/>
+  <rect x="40" y="132" width="110" height="14" rx="3" fill="#a5b4fc"/>
+
+  <line class="svg-arrow" x1="170" y1="85" x2="330" y2="70" marker-end="url(#arr7)"/>
+  <line class="svg-arrow" x1="170" y1="130" x2="330" y2="150" marker-end="url(#arr7)"/>
+  <text class="svg-txt-sm" x="250" y="60" text-anchor="middle">get_slice rows 0 : 25128</text>
+  <text class="svg-txt-sm" x="252" y="176" text-anchor="middle">get_slice rows 25128 : 50257</text>
+
+  <rect class="svg-box-accent" x="335" y="45" width="150" height="52" rx="9"/>
+  <text class="svg-txt-sm" x="410" y="66" text-anchor="middle" style="font-weight:700">GPU 0</text>
+  <text class="svg-txt-sm" x="410" y="84" text-anchor="middle">keeps rows 0–25128</text>
+  <rect class="svg-box-accent" x="335" y="120" width="150" height="52" rx="9" style="fill:#e0e7ff"/>
+  <text class="svg-txt-sm" x="410" y="141" text-anchor="middle" style="font-weight:700">GPU 1</text>
+  <text class="svg-txt-sm" x="410" y="159" text-anchor="middle">keeps rows 25128+</text>
+
+  <text class="svg-txt-sm" x="560" y="95" text-anchor="start">no rank ever reads</text>
+  <text class="svg-txt-sm" x="560" y="112" text-anchor="start">the other half —</text>
+  <text class="svg-txt-sm" x="560" y="129" text-anchor="start">sharding happens</text>
+  <text class="svg-txt-sm" x="560" y="146" text-anchor="start">at the file offset</text>
+</svg>
+<div class="cap">Multi-GPU loading isn't "load then split" — it's <strong>split at the byte range</strong>. Your <code style="font-family:var(--mono)">data_offsets</code> field is what makes this possible.</div>
+</div>
+
+<!-- TRT FLOW -->
+<div class="diagram">
+<svg width="700" height="120" viewBox="0 0 700 120">
+  <defs><marker id="arr8" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9a9aa0"/></marker></defs>
+  <text class="svg-txt-bold" x="20" y="18">Rung 5 — TRT-LLM: pay the parse once, at build time</text>
+  <rect class="svg-box" x="20" y="42" width="130" height="52" rx="9"/>
+  <text class="svg-txt-sm" x="85" y="63" text-anchor="middle">checkpoint</text>
+  <text class="svg-txt-sm" x="85" y="80" text-anchor="middle">(safetensors)</text>
+  <line class="svg-arrow" x1="150" y1="68" x2="176" y2="68" marker-end="url(#arr8)"/>
+  <rect class="svg-box-amber" x="180" y="42" width="190" height="52" rx="9"/>
+  <text class="svg-txt-sm" x="275" y="63" text-anchor="middle">trtllm-build (offline, once)</text>
+  <text class="svg-txt-sm" x="275" y="80" text-anchor="middle">fuse ops · quantize · autotune</text>
+  <line class="svg-arrow" x1="370" y1="68" x2="396" y2="68" marker-end="url(#arr8)"/>
+  <rect class="svg-box-green" x="400" y="42" width="120" height="52" rx="9"/>
+  <text class="svg-txt-sm" x="460" y="63" text-anchor="middle">engine.plan</text>
+  <text class="svg-txt-sm" x="460" y="80" text-anchor="middle">weights baked in</text>
+  <line class="svg-arrow" x1="520" y1="68" x2="546" y2="68" marker-end="url(#arr8)"/>
+  <rect class="svg-box-accent" x="550" y="42" width="130" height="52" rx="9"/>
+  <text class="svg-txt-sm" x="615" y="63" text-anchor="middle">serve: mmap plan</text>
+  <text class="svg-txt-sm" x="615" y="80" text-anchor="middle">zero parsing</text>
+</svg>
+<div class="cap">The most radical answer to "how do you parse weights fast": don't. Compile them away.</div>
+</div>
+
+<div class="callout warn">
+  <div class="co-title">Why pickle died</div>
+  <code class="inline">torch.load</code> on a <code class="inline">.bin/.pt</code> unpickles — and pickle can execute <strong>arbitrary code</strong> hidden in the file. PyTorch ≥ 2.6 defaults to <code class="inline">weights_only=True</code> for this reason. safetensors won because a JSON + raw-bytes format is <em>incapable</em> of executing anything — you proved that by hand today: nothing in your parser could run code.
+</div>
+
+<div class="callout info">
+  <div class="co-title">The one-line takeaway</div>
+  Model loading is a <strong>memory-management problem, not a parsing problem</strong>. The format barely matters; <em>when bytes move and whose memory they land in</em> is the entire game — the same game as KV-cache paging, as you'll see on Day 2.
+</div>
+
+<div class="divider"></div>
+
+<!-- ─────────── ENGINE LOADER ANATOMY ─────────── -->
+<h2 id="anatomy">Inside an engine loader — the 4-hook protocol</h2>
+<p class="sub">Strip away the industrial plumbing and every loader — vLLM, SGLang, TRT-LLM's converter — is the <strong>same four hooks</strong>. We reimplemented them against our GPT-2 file in <code class="inline">code/mini_vllm_loader.py</code> and verified each one.</p>
+
+<!-- PROTOCOL LOOP SVG -->
+<div class="diagram">
+<svg width="700" height="235" viewBox="0 0 700 235">
+  <defs><marker id="arr9" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9a9aa0"/></marker></defs>
+  <text class="svg-txt-bold" x="20" y="20">The universal load loop (real vLLM names annotated)</text>
+
+  <rect class="svg-box-accent" x="20" y="40" width="150" height="64" rx="9"/>
+  <text class="svg-txt-sm" x="95" y="58" text-anchor="middle" style="font-weight:700">1 · ENUMERATE</text>
+  <text class="svg-txt-sm" x="95" y="74" text-anchor="middle">lazy (name, tensor)</text>
+  <text class="svg-txt-sm" x="95" y="90" text-anchor="middle" fill="#4f46e5">safetensors_weights_iterator</text>
+
+  <line class="svg-arrow" x1="170" y1="72" x2="196" y2="72" marker-end="url(#arr9)"/>
+  <rect class="svg-box-red" x="200" y="40" width="140" height="64" rx="9"/>
+  <text class="svg-txt-sm" x="270" y="58" text-anchor="middle" style="font-weight:700">2 · FILTER</text>
+  <text class="svg-txt-sm" x="270" y="74" text-anchor="middle">skip non-params</text>
+  <text class="svg-txt-sm" x="270" y="90" text-anchor="middle" fill="#991b1b">if name.endswith("attn.bias")</text>
+
+  <line class="svg-arrow" x1="340" y1="72" x2="366" y2="72" marker-end="url(#arr9)"/>
+  <rect class="svg-box-amber" x="370" y="40" width="150" height="64" rx="9"/>
+  <text class="svg-txt-sm" x="445" y="58" text-anchor="middle" style="font-weight:700">3 · MAP</text>
+  <text class="svg-txt-sm" x="445" y="74" text-anchor="middle">ckpt name → engine name</text>
+  <text class="svg-txt-sm" x="445" y="90" text-anchor="middle" fill="#b45309">load_weights() / stacked_params_mapping</text>
+
+  <line class="svg-arrow" x1="520" y1="72" x2="546" y2="72" marker-end="url(#arr9)"/>
+  <rect class="svg-box-green" x="550" y="40" width="140" height="64" rx="9"/>
+  <text class="svg-txt-sm" x="620" y="58" text-anchor="middle" style="font-weight:700">4 · PLACE</text>
+  <text class="svg-txt-sm" x="620" y="74" text-anchor="middle">slice · fuse · cast · to(GPU)</text>
+  <text class="svg-txt-sm" x="620" y="90" text-anchor="middle" fill="#065f46">param.weight_loader(...)</text>
+
+  <!-- meta skeleton below -->
+  <rect class="svg-box" x="200" y="140" width="320" height="52" rx="9" style="stroke-dasharray:5 4"/>
+  <text class="svg-txt-sm" x="360" y="160" text-anchor="middle">before the loop: build param skeleton on the META device</text>
+  <text class="svg-txt-sm" x="360" y="177" text-anchor="middle">shapes + dtypes, zero storage — HF: init_empty_weights · vLLM: device="meta"</text>
+  <line class="svg-dash" x1="445" y1="104" x2="400" y2="136" stroke="#9a9aa0" stroke-width="1.4"/>
+  <line class="svg-dash" x1="620" y1="104" x2="480" y2="136" stroke="#9a9aa0" stroke-width="1.4"/>
+
+  <text class="svg-txt-sm" x="350" y="222" text-anchor="middle">then the loop fills the skeleton once — never 2× RAM for "model + checkpoint"</text>
+</svg>
+<div class="cap">GPT-2 numbers from our run: <strong>160 enumerated → 12 filtered → 148 placed + 1 tied</strong>, 498 MB moved at 0.77 GB/s (CPU, cold cache).</div>
+</div>
+
+<h3>Hook 3 in detail — the mapping table (GPT-2 → engine)</h3>
+<div class="card">
+<table class="data">
+  <tr><th>Checkpoint name</th><th>Engine param</th><th>Action</th><th>Why</th></tr>
+  <tr><td class="mono">h.0.attn.bias</td><td class="mono">—</td><td><strong>skip</strong></td><td>causal-mask buffer; engine builds masks in-kernel</td></tr>
+  <tr><td class="mono">h.0.attn.c_attn.weight</td><td class="mono">transformer.h.0.attn.c_attn.weight</td><td>rename + direct copy</td><td>already fused QKV on disk (GPT-2 luxury)</td></tr>
+  <tr><td class="mono">wte.weight</td><td class="mono">transformer.wte.weight</td><td>rename + copy</td><td>token embedding</td></tr>
+  <tr><td class="mono">—</td><td class="mono">lm_head.weight</td><td><strong>tie</strong> to wte</td><td>weight tying: 0 bytes, 0 copies — same storage</td></tr>
+  <tr><td class="mono">model-0000N-of-…</td><td class="mono">—</td><td>index.json routes name → shard</td><td>70B-class models span many files</td></tr>
+</table>
+</div>
+
+<h3>Hook 4 in detail — the two mechanisms GPT-2 hides from you</h3>
+<p>GPT-2 ships QKV pre-fused, so its loader path looks boring. Llama-class checkpoints ship <strong>separate</strong> <code class="inline">q_proj / k_proj / v_proj</code> — and multi-GPU serving needs <strong>sharding</strong>. Both are the same hook with different arguments:</p>
+
+<!-- FUSION SVG -->
+<div class="diagram">
+<svg width="700" height="200" viewBox="0 0 700 200">
+  <defs><marker id="arr10" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9a9aa0"/></marker></defs>
+  <text class="svg-txt-bold" x="20" y="20">Mechanism A — fuse at load (Llama style): 3 tensors → 1 param</text>
+  <rect class="svg-box" x="20" y="50" width="100" height="36" rx="7"/><text class="svg-txt-sm" x="70" y="72" text-anchor="middle">q_proj</text>
+  <rect class="svg-box" x="20" y="92" width="100" height="36" rx="7"/><text class="svg-txt-sm" x="70" y="114" text-anchor="middle">k_proj</text>
+  <rect class="svg-box" x="20" y="134" width="100" height="36" rx="7"/><text class="svg-txt-sm" x="70" y="156" text-anchor="middle">v_proj</text>
+  <line class="svg-arrow" x1="120" y1="68"  x2="215" y2="86"  marker-end="url(#arr10)"/>
+  <line class="svg-arrow" x1="120" y1="110" x2="215" y2="108" marker-end="url(#arr10)"/>
+  <line class="svg-arrow" x1="120" y1="152" x2="215" y2="130" marker-end="url(#arr10)"/>
+  <text class="svg-txt-sm" x="168" y="56" text-anchor="middle">shard_id="q"</text>
+  <text class="svg-txt-sm" x="168" y="104" text-anchor="middle">shard_id="k"</text>
+  <text class="svg-txt-sm" x="168" y="164" text-anchor="middle">shard_id="v"</text>
+  <rect class="svg-box-accent" x="220" y="60" width="220" height="100" rx="9"/>
+  <rect x="232" y="76" width="62" height="68" rx="4" fill="#c7d2fe"/>
+  <rect x="300" y="76" width="62" height="68" rx="4" fill="#a5b4fc"/>
+  <rect x="368" y="76" width="62" height="68" rx="4" fill="#818cf8"/>
+  <text class="svg-txt-sm" x="263" y="72" text-anchor="middle">cols 0:768</text>
+  <text class="svg-txt-sm" x="331" y="72" text-anchor="middle">768:1536</text>
+  <text class="svg-txt-sm" x="399" y="72" text-anchor="middle">1536:2304</text>
+  <text class="svg-txt-sm" x="330" y="180" text-anchor="middle">ONE param: qkv_proj — the loader writes each shard at its column offset</text>
+  <text class="svg-txt-sm" x="560" y="90" text-anchor="start">why fuse?</text>
+  <text class="svg-txt-sm" x="560" y="108" text-anchor="start">1 GEMM instead of 3</text>
+  <text class="svg-txt-sm" x="560" y="126" text-anchor="start">= fewer kernel launches,</text>
+  <text class="svg-txt-sm" x="560" y="144" text-anchor="start">better GPU utilization</text>
+</svg>
+<div class="cap">vLLM's <code style="font-family:var(--mono)">stacked_params_mapping = [("qkv_proj", "q_proj", "q"), ("qkv_proj", "k_proj", "k"), …]</code> is literally this picture as data.</div>
+</div>
+
+<!-- TP SLICE AT LOAD -->
+<div class="diagram">
+<svg width="700" height="150" viewBox="0 0 700 150">
+  <defs><marker id="arr11" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9a9aa0"/></marker></defs>
+  <text class="svg-txt-bold" x="20" y="20">Mechanism B — shard at load (tensor parallelism): narrow() at the byte range</text>
+  <rect class="svg-box" x="20" y="48" width="140" height="70" rx="9"/>
+  <text class="svg-txt-sm" x="90" y="75" text-anchor="middle">c_attn.weight</text>
+  <text class="svg-txt-sm" x="90" y="93" text-anchor="middle">(768, 2304) on disk</text>
+  <line class="svg-arrow" x1="160" y1="68" x2="245" y2="58" marker-end="url(#arr11)"/>
+  <line class="svg-arrow" x1="160" y1="100" x2="245" y2="112" marker-end="url(#arr11)"/>
+  <rect class="svg-box-accent" x="250" y="38" width="170" height="42" rx="8"/>
+  <text class="svg-txt-sm" x="335" y="55" text-anchor="middle">rank 0 keeps cols 0:1152</text>
+  <text class="svg-txt-sm" x="335" y="71" text-anchor="middle" fill="#4f46e5">weight_loader(tp_rank=0)</text>
+  <rect class="svg-box-accent" x="250" y="92" width="170" height="42" rx="8" style="fill:#e0e7ff"/>
+  <text class="svg-txt-sm" x="335" y="109" text-anchor="middle">rank 1 keeps cols 1152:2304</text>
+  <text class="svg-txt-sm" x="335" y="125" text-anchor="middle" fill="#4f46e5">weight_loader(tp_rank=1)</text>
+  <text class="svg-txt-sm" x="470" y="75" text-anchor="start">no rank materializes the full tensor —</text>
+  <text class="svg-txt-sm" x="470" y="93" text-anchor="start">the split happens on the byte offsets</text>
+  <text class="svg-txt-sm" x="470" y="111" text-anchor="start">you parsed in Part 1</text>
+</svg>
+<div class="cap">Verified in our run: both TP slices concatenate back to the exact original tensor.</div>
+</div>
+
+<h3>The runnable proof</h3>
+<div class="code-head"><span>code/mini_vllm_loader.py — hooks 2–4, condensed</span><button class="copy-btn" data-copy="hooks">copy</button></div>
+<pre id="code-hooks"><span class="kw">for</span> name, tensor <span class="kw">in</span> ckpt.items():                <span class="cm"># 1 ENUMERATE (lazy in prod)</span>
+    <span class="kw">if</span> name.endswith((<span class="st">".attn.bias"</span>,)):          <span class="cm"># 2 FILTER  — vLLM gpt2.py's rule</span>
+        <span class="kw">continue</span>
+    pname = map_name(name)                         <span class="cm"># 3 MAP     — "transformer." + name</span>
+    engine[pname] = np.<span class="fn">empty_like</span>(tensor)         <span class="cm">#   meta skeleton → allocate</span>
+    <span class="fn">weight_loader_direct</span>(engine[pname], tensor) <span class="cm"># 4 PLACE   — copy/cast</span>
+
+engine[<span class="st">"lm_head.weight"</span>] = engine[<span class="st">"transformer.wte.weight"</span>]  <span class="cm"># tie: 0 bytes</span>
+
+<span class="cm"># mechanism A: Llama-style separate q/k/v → one fused qkv param</span>
+<span class="fn">weight_loader_shard</span>(qkv, W[:, :<span class="num">768</span>],    shard_id=<span class="st">"q"</span>)   <span class="cm"># writes cols 0:768</span>
+<span class="fn">weight_loader_shard</span>(qkv, W[:, <span class="num">768</span>:<span class="num">1536</span>], shard_id=<span class="st">"k"</span>)   <span class="cm"># writes cols 768:1536</span>
+<span class="fn">weight_loader_shard</span>(qkv, W[:, <span class="num">1536</span>:],   shard_id=<span class="st">"v"</span>)   <span class="cm"># writes cols 1536:2304</span>
+
+<span class="cm"># mechanism B: TP=2 — each rank narrows the tensor at load time</span>
+<span class="fn">weight_loader_tp</span>(rank0, W, tp_rank=<span class="num">0</span>, tp_size=<span class="num">2</span>)      <span class="cm"># cols 0:1152 only</span>
+<span class="fn">weight_loader_tp</span>(rank1, W, tp_rank=<span class="num">1</span>, tp_size=<span class="num">2</span>)      <span class="cm"># cols 1152:2304 only</span></pre>
+
+<details open>
+  <summary>Actual run output (our GPT-2 file, CPU)</summary>
+  <div class="det-body">
+<pre class="term"><span class="p">enumerated : 160 tensors in checkpoint</span>
+<span class="p">filtered   : 12 junk buffers  (e.g. h.7.attn.bias)</span>
+<span class="p">placed     : 148 params + 1 tied (lm_head == wte)</span>
+<span class="p">bytes moved: 498 MB in 0.65s (0.77 GB/s effective)</span>
+<span class="p">verify     : direct path bitwise-exact [OK]</span>
+<span class="p">verify     : 3x(q,k,v) -&gt; fused qkv via shard_id offsets [OK]</span>
+<span class="p">verify     : TP=2 narrow() slices reassemble to the original [OK]</span></pre>
+  </div>
+</details>
+
+<h3>And TRT-LLM? Same hooks — but at <em>build time</em>, plus a compiler</h3>
+<div class="diagram">
+<svg width="700" height="120" viewBox="0 0 700 120">
+  <defs><marker id="arr12" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9a9aa0"/></marker></defs>
+  <rect class="svg-box" x="15" y="40" width="120" height="56" rx="9"/>
+  <text class="svg-txt-sm" x="75" y="60" text-anchor="middle">enumerate+filter</text>
+  <text class="svg-txt-sm" x="75" y="77" text-anchor="middle">+map (same 3)</text>
+  <line class="svg-arrow" x1="135" y1="68" x2="158" y2="68" marker-end="url(#arr12)"/>
+  <rect class="svg-box-amber" x="162" y="40" width="150" height="56" rx="9"/>
+  <text class="svg-txt-sm" x="237" y="60" text-anchor="middle">place → GRAPH rewrite</text>
+  <text class="svg-txt-sm" x="237" y="77" text-anchor="middle">fuse QKV+RoPE+GEMM…</text>
+  <line class="svg-arrow" x1="312" y1="68" x2="335" y2="68" marker-end="url(#arr12)"/>
+  <rect class="svg-box-amber" x="339" y="40" width="130" height="56" rx="9" style="fill:#fef3c7"/>
+  <text class="svg-txt-sm" x="404" y="60" text-anchor="middle">quantize</text>
+  <text class="svg-txt-sm" x="404" y="77" text-anchor="middle">FP8 / INT4 W-only</text>
+  <line class="svg-arrow" x1="469" y1="68" x2="492" y2="68" marker-end="url(#arr12)"/>
+  <rect class="svg-box-amber" x="496" y="40" width="96" height="56" rx="9" style="fill:#fde68a"/>
+  <text class="svg-txt-sm" x="544" y="60" text-anchor="middle">autotune</text>
+  <text class="svg-txt-sm" x="544" y="77" text-anchor="middle">kernels/GPU</text>
+  <line class="svg-arrow" x1="592" y1="68" x2="615" y2="68" marker-end="url(#arr12)"/>
+  <rect class="svg-box-green" x="619" y="40" width="70" height="56" rx="9"/>
+  <text class="svg-txt-sm" x="654" y="60" text-anchor="middle">.plan</text>
+  <text class="svg-txt-sm" x="654" y="77" text-anchor="middle">serialize</text>
+</svg>
+<div class="cap">TRT-LLM runs hooks 1–3 like everyone, but "place" means <strong>bake into a compiled graph</strong>: fusion and quantization decisions frozen into the engine. Serving then does zero name/layout work. SGLang, by contrast, uses vLLM's runtime loader almost verbatim — their differences are in scheduling (RadixAttention), not loading.</div>
+</div>
+
+<div class="callout info">
+  <div class="co-title">The mental compression</div>
+  An engine loader is a <strong>compiler for names and layouts</strong>: checkpoint-space → engine-space. Four hooks; the only real content is the mapping table (per model family) and what "place" does (copy / fuse / slice / cast / compile). When you later read vLLM's <code class="inline">gpt2.py</code> or <code class="inline">llama.py</code> loader, you'll now recognize all four hooks on sight.
+</div>
+
+<div class="divider"></div>
+
+<!-- ─────────── EXERCISES ─────────── -->
+<h2 id="exercises">Exercises before Part 2</h2>
+<div class="card">
+<ol>
+  <li><strong>Verify the junk:</strong> load <code class="inline">h.0.attn.bias</code>, print a corner — what values does a causal mask buffer hold? Are all 12 copies identical? Then make the loader <em>skip</em> any <code class="inline">.attn.bias</code> tensor and re-print total bytes.</li>
+  <li><strong>Zero-copy proof:</strong> check <code class="inline">tensors["wte.weight"].flags</code> — is <code class="inline">OWNDATA</code> true or false? Why? Rewrite the loader with <code class="inline">np.memmap</code> instead of <code class="inline">f.read()</code> — that's what production loaders do.</li>
+  <li><strong>Hand-derive 124,439,808</strong> from config arithmetic alone (the table above is your answer key — do it on paper first).</li>
+  <li>Log the <code class="inline">attn.bias</code> discovery and the square-matrix transpose danger into <code class="inline">notes/errors.md</code>.</li>
+</ol>
+</div>
+
+<div class="divider"></div>
+
+<!-- ─────────── BIG PICTURE ─────────── -->
+<h2 id="stack">The big picture — where today sits</h2>
+<p class="sub">Every inference optimization reduces to one of five physical bottlenecks. Learn to see through that lens and the big engines stop being mysterious.</p>
+
+<div class="diagram">
+<svg width="680" height="290" viewBox="0 0 680 290">
+  <defs><marker id="arr4" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9a9aa0"/></marker></defs>
+  <!-- stack layers -->
+  <rect class="svg-box" x="180" y="14" width="320" height="30" rx="8"/><text class="svg-txt-sm" x="340" y="33" text-anchor="middle">serving: vLLM · SGLang · TRT-LLM · Dynamo</text>
+  <rect class="svg-box" x="180" y="52" width="320" height="30" rx="8"/><text class="svg-txt-sm" x="340" y="71" text-anchor="middle">scheduling: batching · paging · prefix cache</text>
+  <rect class="svg-box" x="180" y="90" width="320" height="30" rx="8"/><text class="svg-txt-sm" x="340" y="109" text-anchor="middle">runtime: KV cache · CUDA graphs · kernels</text>
+  <rect class="svg-box" x="180" y="128" width="320" height="30" rx="8"/><text class="svg-txt-sm" x="340" y="147" text-anchor="middle">model: forward math · dtypes · quantization</text>
+  <rect class="svg-box-accent" x="180" y="166" width="320" height="30" rx="8" style="stroke:#4f46e5;stroke-width:2"/><text class="svg-txt-sm" x="340" y="185" text-anchor="middle" style="font-weight:700">weights: serialization · layout · loading ◄ DAY 1</text>
+  <line x1="150" y1="181" x2="176" y2="181" class="svg-arrow" marker-end="url(#arr4)"/>
+  <text class="svg-txt-sm" x="146" y="185" text-anchor="end" style="fill:#4f46e5;font-weight:700">YOU</text>
+
+  <!-- bottlenecks row -->
+  <text class="svg-txt-bold" x="20" y="232">the five lenses</text>
+  <rect class="svg-box" x="20"  y="244" width="120" height="34" rx="8"/><text class="svg-txt-sm" x="80" y="265" text-anchor="middle">compute · FLOPs</text>
+  <rect class="svg-box" x="148" y="244" width="120" height="34" rx="8"/><text class="svg-txt-sm" x="208" y="265" text-anchor="middle">memory capacity</text>
+  <rect class="svg-box" x="276" y="244" width="130" height="34" rx="8"/><text class="svg-txt-sm" x="341" y="265" text-anchor="middle">memory bandwidth</text>
+  <rect class="svg-box" x="414" y="244" width="120" height="34" rx="8"/><text class="svg-txt-sm" x="474" y="265" text-anchor="middle">scheduling / util</text>
+  <rect class="svg-box" x="542" y="244" width="120" height="34" rx="8"/><text class="svg-txt-sm" x="602" y="265" text-anchor="middle">GPU↔GPU comms</text>
+</svg>
+<div class="cap">Today you own the bottom layer. Each coming day moves one layer up — until the engine internals read as solutions to these five bottlenecks, not as magic.</div>
+</div>
+
+<h3>Up next — Part 2: the BPE tokenizer</h3>
+<div class="callout info">
+  <div class="co-title">Next session</div>
+  Byte↔unicode mapping (why space becomes <code class="inline">Ġ</code>), regex pre-tokenization, the merge loop, and golden test vectors: <code class="inline">"Hello world" → [15496, 995]</code>. The tokenizer is half of every "the model outputs garbage" bug in production.
+</div>
+
+<div class="foot">Inference From Scratch · Day 1 journal · built by hand, like the parser</div>
+
+</main>
+</div>
+
+<script>
+// copy buttons
+document.querySelectorAll('.copy-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const id=btn.dataset.copy, el=document.getElementById('code-'+id);
+    if(!el) return;
+    navigator.clipboard.writeText(el.innerText).then(()=>{
+      btn.textContent='copied ✓'; setTimeout(()=>btn.textContent='copy',1400);
+    });
+  });
+});
+// scrollspy
+const links=[...document.querySelectorAll('.sec-link')];
+const secs=links.map(l=>document.querySelector(l.getAttribute('href'))).filter(Boolean);
+const spy=()=>{let cur=0;secs.forEach((s,i)=>{if(s.getBoundingClientRect().top<120)cur=i});
+  links.forEach((l,i)=>l.classList.toggle('current',i===cur));};
+document.addEventListener('scroll',spy,{passive:true});spy();
+</script>
+</body>
+</html>

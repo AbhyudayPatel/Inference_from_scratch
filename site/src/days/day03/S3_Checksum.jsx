@@ -36,8 +36,8 @@ const TRACE = [
 export default function S3_Checksum() {
   return (
     <>
-      <h2 id="checksum">The full implementation — and the checksum</h2>
-      <p className="sub">~100 lines for the complete model (including the hand loader). The rest of every inference engine is making these same lines faster, smaller, and safer.</p>
+      <h2 id="checksum">Repeat the loop — full greedy generation checksum</h2>
+      <p className="sub">Now connect the two previous sections: forward produces a last-logit row → greedy sampling chooses one ID → append it → forward runs on the longer prefix. Our ~100-line model repeats that loop eight times and matches the known continuation exactly.</p>
       <Code title="code/01_forward.py — the whole model, condensed">{CORE}</Code>
       <Details summary="Verified greedy trace — raw weights + raw tokenizer, no model library" open>
         <Term lines={TRACE} />

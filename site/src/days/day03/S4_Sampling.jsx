@@ -54,8 +54,14 @@ const SAMPLE_OUT = [
 export default function S4_Sampling() {
   return (
     <>
-      <h2 id="sampling">Sampling — policy after logits</h2>
-      <p className="sub">The model returns scores, not words. Everything below changes the choice policy over those scores; none of it changes the transformer forward pass.</p>
+      <h2 id="sampling">Sampling — choose from the just-produced logit row</h2>
+      <p className="sub">The preceding trace ended at <code className="inline">logits[9]</code>: 50,257 scores for what follows <em>become</em>. This section changes only how we choose one ID from that already-computed vector. It never reruns attention or touches the weights.</p>
+      <Callout kind="info" title="Use the concrete boundary">
+        In the Alan Turing trace, forward produced the largest score for ID <code className="inline">262</code>
+        (<code className="inline">" the"</code>). <strong>Greedy</strong> emits 262. Temperature/top-k/top-p may instead
+        sample another permitted ID — but only from that same vector. The chosen ID is appended, and only then does
+        the next forward pass begin.
+      </Callout>
       <Diagram svg={POLICY} caption="Production sampling normally stays on GPU: copying a 50k-float logit vector to Python/CPU for every generated token is needless latency. Engines fuse filtering, probability work, and random draw where possible." />
       <Code title="code/02_sampling.py — top-p (nucleus) from scratch">{SAMPLE_CODE}</Code>
       <Term lines={SAMPLE_OUT} />

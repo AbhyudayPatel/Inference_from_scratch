@@ -17,6 +17,37 @@ const STACK = `<svg width="700" height="285" viewBox="0 0 700 285">
   <text font-family="monospace" font-size="10" fill="#6e6e73" x="350" y="278" text-anchor="middle">TEXT → IDs → WTE → BLOCKS → LOGITS → SAMPLE → ID → TEXT   (you implemented every green arrow)</text>
 </svg>`
 
+const REQUEST_MAP = `<svg width="700" height="300" viewBox="0 0 700 300">
+  <defs><marker id="marr3" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9a9aa0"/></marker></defs>
+  <text font-family="sans-serif" font-weight="700" font-size="12.5" fill="#1d1d1f" x="20" y="20">one real request — the complete Day 1 → Day 3 mental map</text>
+  <rect x="20" y="40" width="180" height="55" rx="9" fill="#fff" stroke="#d9d9de" stroke-width="1.4"/>
+  <text font-family="monospace" font-size="10" fill="#1d1d1f" x="110" y="60" text-anchor="middle" font-weight="700">USER TEXT</text>
+  <text font-family="monospace" font-size="8.8" fill="#6e6e73" x="110" y="77" text-anchor="middle">"Alan Turing theorized…"</text>
+  <line x1="200" y1="67" x2="228" y2="67" stroke="#9a9aa0" stroke-width="1.5" marker-end="url(#marr3)"/>
+  <rect x="232" y="40" width="180" height="55" rx="9" fill="#ecfdf5" stroke="#6ee7b7" stroke-width="1.4"/>
+  <text font-family="monospace" font-size="10" fill="#065f46" x="322" y="60" text-anchor="middle" font-weight="700">DAY 2: TOKENIZE</text>
+  <text font-family="monospace" font-size="8.8" fill="#065f46" x="322" y="77" text-anchor="middle">10 IDs, ending …,1716</text>
+  <line x1="412" y1="67" x2="440" y2="67" stroke="#9a9aa0" stroke-width="1.5" marker-end="url(#marr3)"/>
+  <rect x="444" y="40" width="236" height="55" rx="9" fill="#ecfdf5" stroke="#6ee7b7" stroke-width="1.4"/>
+  <text font-family="monospace" font-size="10" fill="#065f46" x="562" y="60" text-anchor="middle" font-weight="700">DAY 3: FORWARD</text>
+  <text font-family="monospace" font-size="8.8" fill="#065f46" x="562" y="77" text-anchor="middle">loaded W + IDs → logits[9] (50,257)</text>
+  <line x1="562" y1="95" x2="562" y2="125" stroke="#9a9aa0" stroke-width="1.5" marker-end="url(#marr3)"/>
+  <rect x="444" y="130" width="236" height="55" rx="9" fill="#fffbeb" stroke="#fcd34d" stroke-width="1.4"/>
+  <text font-family="monospace" font-size="10" fill="#92400e" x="562" y="150" text-anchor="middle" font-weight="700">POLICY: GREEDY</text>
+  <text font-family="monospace" font-size="8.8" fill="#92400e" x="562" y="167" text-anchor="middle">argmax → ID 262 → " the"</text>
+  <line x1="444" y1="157" x2="416" y2="157" stroke="#9a9aa0" stroke-width="1.5" marker-end="url(#marr3)"/>
+  <rect x="232" y="130" width="180" height="55" rx="9" fill="#fff" stroke="#d9d9de" stroke-width="1.4"/>
+  <text font-family="monospace" font-size="10" fill="#1d1d1f" x="322" y="150" text-anchor="middle" font-weight="700">APPEND ID</text>
+  <text font-family="monospace" font-size="8.8" fill="#6e6e73" x="322" y="167" text-anchor="middle">[…, 1716, 262]</text>
+  <line x1="232" y1="157" x2="204" y2="157" stroke="#9a9aa0" stroke-width="1.5" marker-end="url(#marr3)"/>
+  <rect x="20" y="130" width="180" height="55" rx="9" fill="#fff" stroke="#d9d9de" stroke-width="1.4"/>
+  <text font-family="monospace" font-size="10" fill="#1d1d1f" x="110" y="150" text-anchor="middle" font-weight="700">NEXT PREFIX</text>
+  <text font-family="monospace" font-size="8.8" fill="#6e6e73" x="110" y="167" text-anchor="middle">… become the</text>
+  <path d="M110,185 C110,250 560,250 560,190" fill="none" stroke="#9a9aa0" stroke-width="1.5" marker-end="url(#marr3)"/>
+  <text font-family="monospace" font-size="9.5" fill="#4f46e5" x="350" y="240" text-anchor="middle" font-weight="700">repeat: forward → policy → append, producing: the → most → powerful → machines → on → the → planet → .</text>
+  <text font-family="monospace" font-size="9.5" fill="#6e6e73" x="350" y="276" text-anchor="middle">Day 1 made W trustworthy · Day 2 made IDs correct · Day 3 made f(IDs,W) and the autoregressive loop visible.</text>
+</svg>`
+
 export default function S8_FieldGuide() {
   return (
     <>
@@ -45,6 +76,9 @@ export default function S8_FieldGuide() {
           <li>Extend <code className="inline">notes/errors.md</code> with every modification. The resulting gallery is your future engine-debugging playbook.</li>
         </ol>
       </div>
+      <h3>One request, fully traced</h3>
+      <p className="sub">This is the end-of-day summary pattern: anchor abstract machinery to one verified request, then follow the exact object that crosses each boundary.</p>
+      <Diagram svg={REQUEST_MAP} caption="The next page (Day 4) changes only the loop's cost: it retains old K/V instead of recomputing the entire prefix. The text, IDs, logits, and selected next ID remain the same." />
       <Diagram svg={STACK} caption="" />
       <Callout kind="info" title="Up next — Day 4: KV cache, batching, and serving">
         Today every generated token reruns the entire prefix. Day 4 stores the K/V tensors each layer already

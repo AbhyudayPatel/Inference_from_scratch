@@ -6,6 +6,10 @@ site/dist/
 __pycache__/
 *.py[cod]
 
+# Local model artifacts
+Day01_GPT2_From_Scratch/models/
+*.safetensors
+
 # Editor / OS
 .DS_Store
 Thumbs.db

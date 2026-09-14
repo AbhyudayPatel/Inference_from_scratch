@@ -102,6 +102,7 @@ export const DAYS = [
       { id: 'timeline',   label: 'Timeline' },
       { id: 'lifecycle',  label: 'The request lifecycle' },
       { id: 'manyrequests', label: 'One process, 100s of requests' },
+      { id: 'waterfall',  label: 'Measured waterfall: 4 prompts' },
       { id: 'engine',     label: 'Engine object + batched decode' },
       { id: 'api',        label: 'The JSON API' },
       { id: 'streaming',  label: 'SSE streaming & detok' },

@@ -7,6 +7,7 @@ Adds the two things the Day-4 scripts didn't need:
 
 Everything else (weights, tokenizer, ops, KV cache) is reused from Days 1-4.
 """
+import os
 import queue
 import threading
 import time
@@ -78,10 +79,14 @@ class Request:
 
     def emit(self, tok_id, text_piece, done=False):
         self.events.put({"id": self.id, "token": tok_id, "text": text_piece,
-                         "done": done, "finish_reason": self.finish_reason})
+                         "done": done, "finish_reason": self.finish_reason,
+                         "at": time.perf_counter()})      # engine-side truth
 
 
 # ------------------------------------------------------------------ engine
+DEBUG = os.environ.get("ENGINE_DEBUG") == "1"
+
+
 class Engine:
     def __init__(self, max_batch=MAX_BATCH):
         self.W = get_model()
@@ -143,6 +148,7 @@ class Engine:
         if not batch:
             return False
 
+        _t_tick = time.perf_counter()
         # prefill newcomers, then IMMEDIATELY sample their first token
         for r in batch:
             if r.state == PREFILL:
@@ -150,17 +156,27 @@ class Engine:
                     self._finish(r, error=f"context length exceeded: {len(r.ids)}+"
                                           f"{r.p.max_tokens} > {CTX}")
                     continue
+                _t_pf = time.perf_counter()
                 logits = cached_forward(self.W, r.ids, r.cache)
+                _t_pf = (time.perf_counter() - _t_pf) * 1000
+                if DEBUG: print(f"    [tick] prefill req#{r.id} ({len(r.ids)} toks) took {_t_pf:.0f} ms")
                 r.state = DECODE
                 self._choose(r, logits[-1])
 
         # batched decode: ONE pass through the blocks for the whole batch
         decoding = [r for r in self.running if r.state == DECODE]
         if decoding:
+            _t_dec = time.perf_counter()
             rows = self._batched_decode(decoding)
+            _t_dec = (time.perf_counter() - _t_dec) * 1000
             for r, row in zip(decoding, rows):
                 if r.state == DECODE:            # may have finished on its first token
                     self._choose(r, row)
+            if DEBUG and _t_dec > 150:
+                print(f"    [tick] batched decode B={len(decoding)} took {_t_dec:.0f} ms")
+        _t_total = (time.perf_counter() - _t_tick) * 1000
+        if DEBUG and _t_total > 250:
+            print(f"    [tick] SLOW TICK {_t_total:.0f} ms (B={len(batch)})")
         return True
 
     def _batched_decode(self, reqs):

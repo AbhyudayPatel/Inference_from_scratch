@@ -1,0 +1,163 @@
+    [tick] prefill req#1 (2 toks) took 971 ms
+    [tick] SLOW TICK 1018 ms (B=1)
+    [tick] prefill req#2 (10 toks) took 329 ms
+    [tick] SLOW TICK 373 ms (B=1)
+    [tick] prefill req#3 (5 toks) took 682 ms
+    [tick] prefill req#4 (5 toks) took 541 ms
+    [tick] prefill req#5 (6 toks) took 361 ms
+    [tick] batched decode B=4 took 165 ms
+    [tick] SLOW TICK 1749 ms (B=4)
+    [tick] batched decode B=4 took 584 ms
+    [tick] SLOW TICK 585 ms (B=4)
+    [tick] batched decode B=4 took 461 ms
+    [tick] SLOW TICK 462 ms (B=4)
+    [tick] batched decode B=3 took 402 ms
+    [tick] SLOW TICK 402 ms (B=3)
+{
+ "A": {
+  "prompt": "Alan Turing theorized that computers would one day become",
+  "submitted_at": 0.0005644000048050657,
+  "tokens": [
+   {
+    "t": 0.33,
+    "text": " the"
+   },
+   {
+    "t": 0.373,
+    "text": " most"
+   },
+   {
+    "t": 2.122,
+    "text": " powerful"
+   },
+   {
+    "t": 2.272,
+    "text": " machines"
+   },
+   {
+    "t": 2.856,
+    "text": " on"
+   },
+   {
+    "t": 3.318,
+    "text": " the"
+   },
+   {
+    "t": 3.72,
+    "text": " planet"
+   },
+   {
+    "t": 3.76,
+    "text": "."
+   }
+  ],
+  "done_at": 3.76,
+  "finish": "length",
+  "ttft_ms": 329.4,
+  "queued_ms": 329.4
+ },
+ "B": {
+  "prompt": "The capital of France is",
+  "submitted_at": 0.10362520000489894,
+  "tokens": [
+   {
+    "t": 1.056,
+    "text": " the"
+   },
+   {
+    "t": 2.123,
+    "text": " capital"
+   },
+   {
+    "t": 2.272,
+    "text": " of"
+   },
+   {
+    "t": 2.856,
+    "text": " the"
+   },
+   {
+    "t": 3.318,
+    "text": " French"
+   },
+   {
+    "t": 3.72,
+    "text": " Republic"
+   }
+  ],
+  "done_at": 3.72,
+  "finish": "length",
+  "ttft_ms": 952.4,
+  "queued_ms": 952.4
+ },
+ "C": {
+  "prompt": "Water on Earth boils at",
+  "submitted_at": 0.22621769999386743,
+  "tokens": [
+   {
+    "t": 1.597,
+    "text": " about"
+   },
+   {
+    "t": 2.123,
+    "text": " 1"
+   },
+   {
+    "t": 2.272,
+    "text": ","
+   },
+   {
+    "t": 2.857,
+    "text": "000"
+   },
+   {
+    "t": 3.318,
+    "text": " degrees"
+   }
+  ],
+  "done_at": 3.318,
+  "finish": "length",
+  "ttft_ms": 1370.8,
+  "queued_ms": 1370.8
+ },
+ "D": {
+  "prompt": "The future of artificial intelligence is",
+  "submitted_at": 0.3555844999937108,
+  "tokens": [
+   {
+    "t": 1.958,
+    "text": " uncertain"
+   },
+   {
+    "t": 2.123,
+    "text": "."
+   },
+   {
+    "t": 2.272,
+    "text": "\n"
+   },
+   {
+    "t": 2.857,
+    "text": "\n"
+   },
+   {
+    "t": 3.318,
+    "text": "\""
+   },
+   {
+    "t": 3.721,
+    "text": "We"
+   }
+  ],
+  "done_at": 3.721,
+  "finish": "length",
+  "ttft_ms": 1602.4,
+  "queued_ms": 1602.4
+ }
+}
+
+--- reading the waterfall ---
+A: submitted +   1ms | first token + 329ms after submitting | token gaps [43, 1749, 150, 584, 462, 402, 40] | out=' the most powerful machines on the planet.'
+B: submitted + 104ms | first token + 952ms after submitting | token gaps [1067, 149, 584, 462, 402] | out=' the capital of the French Republic'
+C: submitted + 226ms | first token +1371ms after submitting | token gaps [526, 149, 585, 461] | out=' about 1,000 degrees'
+D: submitted + 356ms | first token +1602ms after submitting | token gaps [165, 149, 585, 461, 403] | out=' uncertain.\n\n"We'

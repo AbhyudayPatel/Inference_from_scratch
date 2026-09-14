@@ -1,0 +1,142 @@
+{
+ "A": {
+  "prompt": "Alan Turing theorized that computers would one day become",
+  "submitted_at": 0.0006529999955091625,
+  "tokens": [
+   {
+    "t": 0.433,
+    "text": " the"
+   },
+   {
+    "t": 0.469,
+    "text": " most"
+   },
+   {
+    "t": 1.229,
+    "text": " powerful"
+   },
+   {
+    "t": 1.377,
+    "text": " machines"
+   },
+   {
+    "t": 1.552,
+    "text": " on"
+   },
+   {
+    "t": 1.725,
+    "text": " the"
+   },
+   {
+    "t": 1.871,
+    "text": " planet"
+   },
+   {
+    "t": 1.907,
+    "text": "."
+   }
+  ],
+  "done_at": 1.907,
+  "finish": "length",
+  "ttft_ms": 432.3,
+  "queued_ms": 432.3
+ },
+ "B": {
+  "prompt": "The capital of France is",
+  "submitted_at": 0.10306739999214187,
+  "tokens": [
+   {
+    "t": 0.596,
+    "text": " the"
+   },
+   {
+    "t": 1.229,
+    "text": " capital"
+   },
+   {
+    "t": 1.377,
+    "text": " of"
+   },
+   {
+    "t": 1.552,
+    "text": " the"
+   },
+   {
+    "t": 1.725,
+    "text": " French"
+   },
+   {
+    "t": 1.871,
+    "text": " Republic"
+   }
+  ],
+  "done_at": 1.871,
+  "finish": "length",
+  "ttft_ms": 492.9,
+  "queued_ms": 492.9
+ },
+ "C": {
+  "prompt": "Water on Earth boils at",
+  "submitted_at": 0.22876339999493212,
+  "tokens": [
+   {
+    "t": 0.754,
+    "text": " about"
+   },
+   {
+    "t": 1.229,
+    "text": " 1"
+   },
+   {
+    "t": 1.377,
+    "text": ","
+   },
+   {
+    "t": 1.552,
+    "text": "000"
+   },
+   {
+    "t": 1.726,
+    "text": " degrees"
+   }
+  ],
+  "done_at": 1.726,
+  "finish": "length",
+  "ttft_ms": 525.2,
+  "queued_ms": 525.2
+ },
+ "D": {
+  "prompt": "The future of artificial intelligence is",
+  "submitted_at": 0.3567332999955397,
+  "tokens": [
+   {
+    "t": 0.965,
+    "text": " uncertain"
+   },
+   {
+    "t": 1.229,
+    "text": "."
+   },
+   {
+    "t": 1.377,
+    "text": "\n"
+   },
+   {
+    "t": 1.552,
+    "text": "\n"
+   },
+   {
+    "t": 1.726,
+    "text": "\""
+   },
+   {
+    "t": 1.871,
+    "text": "We"
+   }
+  ],
+  "done_at": 1.871,
+  "finish": "length",
+  "ttft_ms": 608.3,
+  "queued_ms": 608.3
+ }
+}

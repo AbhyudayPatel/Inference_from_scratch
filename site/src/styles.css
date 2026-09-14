@@ -314,7 +314,21 @@ details .term { margin: 4px 0 0; }
 .lane.boot h4 { color: var(--accent); }
 .lane.req h4 { color: var(--green); }
 .lane.tok h4 { color: var(--amber); }
-@media (max-width: 760px) { .lanes { grid-template-columns: 1fr; } .brow { grid-template-columns: 120px 1fr 60px; } }
+.lanes.four { grid-template-columns: repeat(4, 1fr); }
+.lanes.four .lane .lbody { font-size: 12px; padding: 10px 12px; }
+@media (max-width: 760px) { .lanes, .lanes.four { grid-template-columns: 1fr; } .brow { grid-template-columns: 120px 1fr 60px; } }
+
+/* gantt timelines */
+.gantt { margin: 10px 0 4px; }
+.gantt .grow { display: flex; height: 30px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+.gantt .seg { display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 10px; color: #fff; white-space: nowrap; overflow: hidden; min-width: 2px; }
+.gantt .seg.idle { background: #e4e4e9; color: var(--ink-3); }
+.gantt .seg.pf { background: var(--green); }
+.gantt .seg.dc { background: var(--accent); }
+.gantt .seg.waste { background: var(--amber); }
+.gantt .glabel { font-family: var(--mono); font-size: 11px; color: var(--ink-2); margin: 6px 0 4px; }
+.gantt-legend { font-size: 12px; color: var(--ink-2); margin-top: 6px; }
+.gantt-legend .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin: 0 4px 0 12px; vertical-align: -1px; }
 
 /* error box for lazy-load failures */
 .load-err {

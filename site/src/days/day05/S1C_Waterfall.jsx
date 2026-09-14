@@ -26,24 +26,45 @@ const TRACE = [
     toks: [[' uncertain.', 965], ['\\n\\n"', 1229], ['We', 1377], ["'", 1552], ['re', 1725]],
   },
 ]
-const SHARED_TICKS = [1229, 1377, 1552, 1725]
+/* every engine tick in the trace: prefill ticks (green) and batched decode ticks (blue).
+   EVERY token event lands exactly on one of these — that is the point of the chart. */
+const TICKS = [
+  { t: 433, kind: 'pf', label: 'prefill A' },
+  { t: 469, kind: 'd',  label: '+469' },
+  { t: 596, kind: 'pf', label: 'prefill B' },
+  { t: 754, kind: 'pf', label: 'prefill C' },
+  { t: 965, kind: 'pf', label: 'prefill D' },
+  { t: 1229, kind: 'd', label: '+1229' },
+  { t: 1377, kind: 'd', label: '+1377' },
+  { t: 1552, kind: 'd', label: '+1552' },
+  { t: 1725, kind: 'd', label: '+1725' },
+  { t: 1871, kind: 'd', label: '+1871' },
+  { t: 1907, kind: 'd', label: '+1907' },
+]
+const AXIS = [0, 500, 1000, 1500, 2000]
 
 function Row({ r }) {
   const pct = (ms) => `${(ms / T_END) * 100}%`
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '34px 1fr', alignItems: 'center', margin: '10px 0' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '34px 1fr', alignItems: 'center', margin: '6px 0' }}>
       <div style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 15, color: 'var(--ink)' }}>{r.id}</div>
-      <div style={{ position: 'relative', height: 46, background: 'var(--bg-soft)', borderRadius: 8, border: '1px solid var(--line)' }}>
-        {/* waiting segment: submit -> first token (TTFT) */}
-        <div title={`waiting+prefill: ${r.firstTok - r.submitted} ms (TTFT)`}
-          style={{ position: 'absolute', left: pct(r.submitted), width: pct(r.firstTok - r.submitted), top: 6, height: 14, background: 'var(--amber-soft)', border: '1px solid var(--amber-line)', borderRadius: 4 }} />
-        {/* token ticks */}
+      <div style={{ position: 'relative', height: 44, background: 'var(--bg-soft)', borderRadius: 8, border: '1px solid var(--line)' }}>
+        {/* engine tick lines — drawn through EVERY row so alignment is visible */}
+        {TICKS.map((tk) => (
+          <div key={tk.t} style={{ position: 'absolute', left: pct(tk.t), top: 0, height: '100%', width: 1,
+            background: tk.kind === 'pf' ? 'var(--green-line)' : 'var(--accent-line)', opacity: 0.55 }} />
+        ))}
+        {/* time-in-queue + prefill (TTFT): submit -> first token */}
+        <div title={`TTFT ${r.firstTok - r.submitted} ms (queue + prefill)`}
+          style={{ position: 'absolute', left: pct(r.submitted), width: pct(r.firstTok - r.submitted), top: 5, height: 13, background: 'var(--amber-soft)', border: '1px solid var(--amber-line)', borderRadius: 4 }} />
+        {/* token events — each sits exactly on a tick line */}
         {r.toks.map(([txt, t], i) => (
           <div key={i} title={`+${t} ms  ${JSON.stringify(txt)}`}
-            style={{ position: 'absolute', left: pct(t), top: 24, width: 5, height: 16, marginLeft: -2, background: 'var(--accent)', borderRadius: 2 }} />
+            style={{ position: 'absolute', left: pct(t), top: 22, width: 6, height: 16, marginLeft: -3, background: 'var(--accent)', borderRadius: 2 }} />
         ))}
         {/* done marker */}
-        <div style={{ position: 'absolute', left: pct(r.done), top: 4, width: 2, height: 38, background: 'var(--green)' }} />
+        <div title={`finished at +${r.done} ms`}
+          style={{ position: 'absolute', left: pct(r.done), top: 3, width: 2.5, height: 38, background: 'var(--green)', borderRadius: 2 }} />
         {r.id === 'A' && r.toks.map(([txt, t], i) => (
           <div key={'l' + i} style={{ position: 'absolute', left: pct(t), top: i % 2 ? -16 : -30, transform: 'translateX(-50%)', fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>{txt === '' ? '·' : txt}</div>
         ))}
@@ -63,13 +84,22 @@ export default function S1C_Waterfall() {
       </p>
 
       <div style={{ margin: '58px 0 6px' }}>
-        {TRACE.map((r) => <Row key={r.id} r={r} />)}
-        {/* time axis — same grid template so labels align with the plot area */}
+        {/* tick labels above the chart (green = prefill tick, blue = batched decode tick) */}
         <div style={{ display: 'grid', gridTemplateColumns: '34px 1fr' }}>
           <div />
           <div style={{ position: 'relative', height: 26 }}>
-            {SHARED_TICKS.map((t, i) => (
-              <div key={t} style={{ position: 'absolute', left: `${(t / T_END) * 100}%`, top: i % 2 ? 12 : 0, transform: 'translateX(-50%)', fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>+{t} ms</div>
+            {TICKS.filter((tk) => tk.kind === 'pf').map((tk, i) => (
+              <div key={tk.t} style={{ position: 'absolute', left: `${(tk.t / T_END) * 100}%`, top: i % 2 ? 13 : 0, transform: 'translateX(-50%)', fontFamily: 'var(--mono)', fontSize: 9.5, whiteSpace: 'nowrap', color: 'var(--green)' }}>{tk.label}</div>
+            ))}
+          </div>
+        </div>
+        {TRACE.map((r) => <Row key={r.id} r={r} />)}
+        {/* real time axis */}
+        <div style={{ display: 'grid', gridTemplateColumns: '34px 1fr' }}>
+          <div />
+          <div style={{ position: 'relative', height: 16, borderTop: '1px solid var(--line)', marginTop: 2 }}>
+            {AXIS.map((t) => (
+              <div key={t} style={{ position: 'absolute', left: `${(t / T_END) * 100}%`, transform: t === 0 ? 'none' : t === T_END ? 'translateX(-100%)' : 'translateX(-50%)', fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)' }}>{t === 0 ? '0' : `+${t}`}</div>
             ))}
           </div>
         </div>
@@ -77,16 +107,16 @@ export default function S1C_Waterfall() {
           <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: 3, background: 'var(--amber-soft)', border: '1px solid var(--amber-line)', verticalAlign: '-2px', marginRight: 6 }} />waiting + prefill (TTFT)
           <span style={{ display: 'inline-block', width: 5, height: 12, borderRadius: 2, background: 'var(--accent)', verticalAlign: '-2px', margin: '0 6px 0 14px' }} />one token emitted
           <span style={{ display: 'inline-block', width: 2, height: 12, background: 'var(--green)', verticalAlign: '-2px', margin: '0 6px 0 14px' }} />done
-          · hover any tick for the token text and timestamp
+          · faint vertical lines = engine ticks (green prefill, blue decode) · hover a block for its token
         </div>
       </div>
 
       <h3>Read it vertically — that's the whole secret</h3>
       <p>
-        Look at <strong>+1229 ms, +1377 ms, +1552 ms, +1725 ms</strong>: at each of those instants,
-        <em> every</em> running request emits a token <strong>at the same moment</strong>. That vertical
-        alignment is one batched decode tick — a single forward pass whose GEMMs carried all four
-        requests. Between ticks, the engine does nothing but the next pass.
+        Every blue block sits exactly on a drawn tick line — and from <strong>+1229 ms</strong> on, each
+        blue line carries a block on <em>every</em> row. That is one batched decode tick: a single forward
+        pass whose GEMMs produced a token for all four requests at once. The green lines are prefill
+        ticks: B, C, D each got first tokens the moment their prefill finished, without waiting for A.
       </p>
 
       <h3>So… does a prompt wait for the previous one?</h3>

@@ -28,8 +28,8 @@ export default function Home() {
       <h2>The road</h2>
       <div className="pipeline">{`Day 1 ✓  loading              GPT-2 from raw files — formats, mmap, engine loaders
 Day 2 ✓  tokenization         UTF-8 · byte-level BPE from scratch · GPT-2 + Qwen3
-Day 3   the forward pass     embeddings · attention · MLP · sampling, in NumPy  ◄ NEXT
-Day 4   naive → optimized    KV cache · batching · FastAPI serving · PyTorch move
+Day 3 ✓  the forward pass     embeddings · attention · MLP · logits · sampling, in NumPy
+Day 4   naive → optimized    KV cache · batching · FastAPI serving · PyTorch move  ◄ NEXT
 Day 5   representation       FP16/BF16/INT8/FP8 · GGUF · ONNX · weight packing
 Day 6+  hardware & scale     CUDA/Triton kernels · TP/PP · paged KV
 Later   the engines          vLLM (PagedAttention, continuous batching)

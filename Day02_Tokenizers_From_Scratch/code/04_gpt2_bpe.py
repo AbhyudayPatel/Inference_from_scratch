@@ -109,42 +109,43 @@ class GPT2Tokenizer:
         return [ascii(self.id2tok[i]) for i in ids]
 
 
-tok = GPT2Tokenizer()
-print(f"loaded: vocab={len(tok.vocab):,}  merges={len(tok.ranks):,}  byte_alphabet=256")
+if __name__ == "__main__":
+    tok = GPT2Tokenizer()
+    print(f"loaded: vocab={len(tok.vocab):,}  merges={len(tok.ranks):,}  byte_alphabet=256")
 
-print("\n=== GOLDEN VECTORS ===")
-for text, expect in [("Hello world", [15496, 995]), ("Hello, world!", [15496, 11, 995, 0])]:
-    ids = tok.encode(text)
-    ok = "OK " if ids == expect else "MISMATCH"
-    print(f"{ok} {text!r:<16} -> {ids}  expected {expect}")
-    print(f"     pieces: {tok.pieces(ids)}")
+    print("\n=== GOLDEN VECTORS ===")
+    for text, expect in [("Hello world", [15496, 995]), ("Hello, world!", [15496, 11, 995, 0])]:
+        ids = tok.encode(text)
+        ok = "OK " if ids == expect else "MISMATCH"
+        print(f"{ok} {text!r:<16} -> {ids}  expected {expect}")
+        print(f"     pieces: {tok.pieces(ids)}")
 
-print("\n=== ROUNDTRIP on tricky strings ===")
-tests = [
-    "unbelievable",
-    "The quick brown fox jumps over the lazy dog.",
-    "Hello \u0928\u092e\u0938\u094d\u0924\u0947 \U0001f600",   # Hindi + emoji
-    "def attention(x):\n    return x @ W\n",                    # code
-    "  multiple   spaces  ",                                     # whitespace runs
-    "\u4f60\u597d\uff0c\u4e16\u754c",                            # Chinese
-]
-for t in tests:
-    ids = tok.encode(t)
-    back = tok.decode(ids)
-    ok = "OK " if back == t else "MISMATCH"
-    print(f"{ok} {ascii(t):<44} n={len(ids):<3} roundtrip={back == t}")
+    print("\n=== ROUNDTRIP on tricky strings ===")
+    tests = [
+        "unbelievable",
+        "The quick brown fox jumps over the lazy dog.",
+        "Hello \u0928\u092e\u0938\u094d\u0924\u0947 \U0001f600",   # Hindi + emoji
+        "def attention(x):\n    return x @ W\n",                    # code
+        "  multiple   spaces  ",                                     # whitespace runs
+        "\u4f60\u597d\uff0c\u4e16\u754c",                            # Chinese
+    ]
+    for t in tests:
+        ids = tok.encode(t)
+        back = tok.decode(ids)
+        ok = "OK " if back == t else "MISMATCH"
+        print(f"{ok} {ascii(t):<44} n={len(ids):<3} roundtrip={back == t}")
 
-print("\n=== UNSEEN WORD DECOMPOSES (subword magic) ===")
-ids = tok.encode("unbelievableness")
-print("unbelievableness ->", ids)
-print("pieces           ->", tok.pieces(ids))
+    print("\n=== UNSEEN WORD DECOMPOSES (subword magic) ===")
+    ids = tok.encode("unbelievableness")
+    print("unbelievableness ->", ids)
+    print("pieces           ->", tok.pieces(ids))
 
-print("\n=== PERF: naive vs cached ===")
-big = "The quick brown fox jumps over the lazy dog. " * 200  # ~9k chars
-t0 = time.perf_counter(); ids1 = tok.encode(big); t1 = time.perf_counter()
-tok.cache.clear()
-t2 = time.perf_counter(); ids2 = tok.encode(big); t3 = time.perf_counter()
-n = len(big)
-print(f"first pass : {n:,} chars -> {len(ids1):,} ids in {1000*(t1-t0):.1f} ms ({n/(t1-t0)/1e6:.2f} MB/s)")
-print(f"cold cache : {'':<14} in {1000*(t3-t2):.1f} ms ({n/(t3-t2)/1e6:.2f} MB/s)")
-print("HF's Rust 'tokenizers' does this at ~100+ MB/s: same algorithm, systems engineering.")
+    print("\n=== PERF: naive vs cached ===")
+    big = "The quick brown fox jumps over the lazy dog. " * 200  # ~9k chars
+    t0 = time.perf_counter(); ids1 = tok.encode(big); t1 = time.perf_counter()
+    tok.cache.clear()
+    t2 = time.perf_counter(); ids2 = tok.encode(big); t3 = time.perf_counter()
+    n = len(big)
+    print(f"first pass : {n:,} chars -> {len(ids1):,} ids in {1000*(t1-t0):.1f} ms ({n/(t1-t0)/1e6:.2f} MB/s)")
+    print(f"cold cache : {'':<14} in {1000*(t3-t2):.1f} ms ({n/(t3-t2)/1e6:.2f} MB/s)")
+    print("HF's Rust 'tokenizers' does this at ~100+ MB/s: same algorithm, systems engineering.")

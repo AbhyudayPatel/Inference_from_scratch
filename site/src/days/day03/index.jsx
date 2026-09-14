@@ -17,8 +17,8 @@ export default function Day03() {
       <S1 />
       <S2 />
       <S3Bridge />
-      <S4Sampling />
       <S3Checksum />
+      <S4Sampling />
       <S5 />
       <S6 />
       <S7 />

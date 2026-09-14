@@ -274,6 +274,48 @@ details .term { margin: 4px 0 0; }
 .day-card .dc-status.done { color: var(--green); }
 .day-card .dc-status.active { color: var(--accent); }
 
+/* ── HTML flow diagrams (readable alternative to dense SVGs) ─────────── */
+.flow { display: flex; align-items: stretch; gap: 10px; margin: 18px 0; flex-wrap: wrap; }
+.flow-v { display: flex; flex-direction: column; align-items: center; gap: 0; margin: 18px 0; }
+.fnode {
+  border: 1px solid var(--line); border-radius: 12px; background: #fff;
+  padding: 12px 16px; min-width: 150px; text-align: center;
+}
+.fnode .t { font-family: var(--mono); font-size: 12.5px; font-weight: 700; color: var(--ink); }
+.fnode .s { font-size: 12px; color: var(--ink-2); margin-top: 3px; line-height: 1.45; }
+.fnode .v { font-family: var(--mono); font-size: 12px; color: var(--ink-2); margin-top: 5px; line-height: 1.5; }
+.fnode.green { background: var(--green-soft); border-color: var(--green-line); }
+.fnode.green .t, .fnode.green .v { color: var(--green); }
+.fnode.amber { background: var(--amber-soft); border-color: var(--amber-line); }
+.fnode.amber .t, .fnode.amber .v { color: var(--amber); }
+.fnode.blue { background: var(--accent-soft); border-color: var(--accent-line); }
+.fnode.blue .t, .fnode.blue .v { color: var(--accent); }
+.farrow { display: flex; align-items: center; justify-content: center; color: var(--ink-3); font-size: 20px; flex: 0 0 auto; }
+.farrow.down { padding: 2px 0; }
+.farrow .lbl { font-family: var(--mono); font-size: 10px; color: var(--ink-2); margin-left: 8px; }
+.flow-note { font-size: 13px; color: var(--ink-2); text-align: center; margin-top: 6px; }
+.flow-grid { display: grid; grid-template-columns: 1fr 34px 1fr 34px 1fr; gap: 10px; align-items: center; margin: 18px 0; }
+
+/* candidate bars */
+.bars { margin: 14px 0; }
+.brow { display: grid; grid-template-columns: 190px 1fr 74px; gap: 12px; align-items: center; margin: 7px 0; }
+.brow .bname { font-family: var(--mono); font-size: 12.5px; text-align: right; color: var(--ink); }
+.brow .bname b { font-weight: 700; }
+.brow .bbar { height: 22px; border-radius: 6px; background: var(--accent-line); position: relative; min-width: 3px; }
+.brow .bbar.win { background: var(--green-line); }
+.brow .bpct { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
+
+/* three-lane summary map */
+.lanes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 18px 0; }
+.lane { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: #fff; }
+.lane h4 { margin: 0; padding: 10px 14px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; background: var(--bg-soft); border-bottom: 1px solid var(--line); }
+.lane .lbody { padding: 12px 14px; font-size: 13px; line-height: 1.55; }
+.lane .lbody code { font-family: var(--mono); font-size: 11.5px; background: var(--bg-soft); padding: 1px 4px; border-radius: 4px; }
+.lane.boot h4 { color: var(--accent); }
+.lane.req h4 { color: var(--green); }
+.lane.tok h4 { color: var(--amber); }
+@media (max-width: 760px) { .lanes { grid-template-columns: 1fr; } .brow { grid-template-columns: 120px 1fr 60px; } }
+
 /* error box for lazy-load failures */
 .load-err {
   margin: 40px 0; padding: 18px 22px; border-radius: 12px;

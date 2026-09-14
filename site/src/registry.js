@@ -101,6 +101,7 @@ export const DAYS = [
     sections: [
       { id: 'timeline',   label: 'Timeline' },
       { id: 'lifecycle',  label: 'The request lifecycle' },
+      { id: 'manyrequests', label: 'One process, 100s of requests' },
       { id: 'engine',     label: 'Engine object + batched decode' },
       { id: 'api',        label: 'The JSON API' },
       { id: 'streaming',  label: 'SSE streaming & detok' },

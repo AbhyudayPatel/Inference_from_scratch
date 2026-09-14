@@ -25,6 +25,7 @@ export default function S0_Hero() {
       <h2 id="timeline">The day at a glance</h2>
       <Timeline items={[
         { tag: 'P1', head: 'The request lifecycle', body: 'validate → tokenize → admit → prefill → decode → detokenize → respond', state: 'done' },
+        { tag: 'P1.5', head: 'One process, 100s of requests', body: 'the #1 serving confusion, answered: shared read-only weights + tiny per-request state + one loop', state: 'done' },
         { tag: 'P2', head: 'The engine object', body: 'state machine + worker thread + truly batched decode (padded-KV mask)', state: 'done' },
         { tag: 'P3', head: 'The API', body: '/v1/generate, /v1/chat/completions, JSON errors that fail BEFORE compute', state: 'done' },
         { tag: 'P4', head: 'Streaming', body: 'SSE frames, incremental detokenization, TTFT and TPOT', state: 'done' },

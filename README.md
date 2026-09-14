@@ -7,8 +7,11 @@ Become the kind of engineer who can look at **vLLM, TensorRT-LLM, SGLang, or NVI
 The path: **raw math → naive inference → optimized inference → serving → production engines.**
 
 ```
-Day 1   : GPT-2 inference with ZERO libraries (parse weights by hand, BPE by hand, forward pass in NumPy)
-Day 2+  : Batching, KV cache, sampling, serving, memory math, quantization, kernels...
+Day 1 ✓ : Loading any LLM from raw files (safetensors by hand, 4-hook loader protocol, mmap, shards, Qwen3)
+Day 2 ✓ : Tokenization from scratch (UTF-8, byte-level BPE engine, GPT-2 + Qwen3 from one class, chat templates)
+Day 3   : The forward pass in NumPy (embeddings, attention, MLP, sampling — greedy checksum)
+Day 4   : KV cache, batching, serving over HTTP
+Day 5+  : dtypes/quantization (FP16/BF16/INT8/FP8, GGUF/ONNX), GPU kernels, TP/PP
 Later   : vLLM (PagedAttention, continuous batching), TRT-LLM (kernels, graph capture),
           SGLang (RadixAttention, constrained decoding), Dynamo (disaggregated serving)
 ```
@@ -25,10 +28,12 @@ Later   : vLLM (PagedAttention, continuous batching), TRT-LLM (kernels, graph ca
 
 | Phase | Days | Theme |
 |---|---|---|
-| 1 | Day 1 | **Raw inference**: GPT-2 from raw files, NumPy only, serve over HTTP |
-| 2 | Day 2–3 | Correctness vs HF (as an *oracle* only), KV cache, sampling strategies, batching |
-| 3 | Day 4–6 | Memory/dtype math, quantization (INT8/INT4), different formats (GGUF/ONNX), other model families (Llama, MoE) |
-| 4 | Day 7+ | GPU kernels, CUDA/Triton, paged KV, continuous batching — then enter vLLM/SGLang/TRT-LLM/Dynamo |
+| 1 | Day 1 ✓ | **Loading**: GPT-2 + Qwen3 from raw files, zero libraries — formats, 4-hook protocol, mmap, shards |
+| 2 | Day 2 ✓ | **Tokenization**: byte-level BPE from scratch — one engine drives GPT-2 and Qwen3; chat templates; token economics |
+| 3 | Day 3 | **Forward pass**: embeddings, attention, MLP, sampling in NumPy — greedy checksum vs known output |
+| 4 | Day 4 | KV cache, batching, serving (FastAPI), correctness vs HF (as an *oracle* only) |
+| 5 | Day 5–6 | Memory/dtype math, quantization (INT8/INT4), GGUF/ONNX, other model families (Llama, MoE) |
+| 6 | Day 7+ | GPU kernels, CUDA/Triton, paged KV, continuous batching — then enter vLLM/SGLang/TRT-LLM/Dynamo |
 
 ## Today's Folder
 

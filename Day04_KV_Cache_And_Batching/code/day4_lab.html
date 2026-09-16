@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Day 04 · KV Cache &amp; Batching — Live Labs</title>
+<style>
+:root{
+  --bg:#ffffff; --bg-soft:#f5f5f7; --ink:#1d1d1f; --ink-2:#6e6e73; --ink-3:#9a9aa0;
+  --line:#d9d9de; --accent:#4f46e5; --accent-soft:#eef2ff; --accent-line:#a5b4fc;
+  --green:#065f46; --green-soft:#ecfdf5; --green-line:#6ee7b7;
+  --amber:#92400e; --amber-soft:#fffbeb; --amber-line:#fcd34d;
+  --red:#991b1b; --red-soft:#fef2f2; --red-line:#fecaca;
+  --mono:ui-monospace,"SF Mono","Cascadia Code",Consolas,Menlo,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+h1{font-size:27px;letter-spacing:-0.02em;margin:0}
+h1 em{font-style:normal;color:var(--accent)}
+h2{font-size:20px;margin:0 0 4px;letter-spacing:-0.01em}
+h3{font-size:15px;margin:22px 0 6px}
+p{margin:8px 0}
+.sub{color:var(--ink-2)}
+code.inline{font-family:var(--mono);font-size:.85em;background:var(--bg-soft);border:1px solid var(--line);padding:1px 5px;border-radius:5px}
+button{font-family:inherit}
+
+.topbar{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.9);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.topbar-in{max-width:1180px;margin:0 auto;padding:12px 28px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.topbar .brand{font-weight:700;font-size:14.5px}
+.topbar .brand small{display:block;font-weight:400;color:var(--ink-2);font-size:11.5px}
+.nav{margin-left:auto;display:flex;gap:2px;flex-wrap:wrap}
+.nav a{font-family:var(--mono);font-size:11.5px;color:var(--ink-2);text-decoration:none;padding:5px 10px;border-radius:8px}
+.nav a:hover{background:var(--bg-soft);color:var(--ink)}
+
+.wrap{max-width:1180px;margin:0 auto;padding:26px 28px 100px}
+.badge{display:inline-block;font-family:var(--mono);font-size:10.5px;padding:2px 9px;border-radius:99px;border:1px solid var(--amber-line);background:var(--amber-soft);color:var(--amber)}
+.badge.done{border-color:var(--green-line);background:var(--green-soft);color:var(--green)}
+.badge.bad{border-color:var(--red-line);background:var(--red-soft);color:var(--red)}
+.chip{font-family:var(--mono);font-size:11px;color:var(--ink-2);background:var(--bg-soft);border:1px solid var(--line);padding:3px 10px;border-radius:99px}
+.filechip{font-family:var(--mono);font-size:11px;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent-line);padding:3px 10px;border-radius:99px}
+
+.lab{border-top:1px solid var(--line);padding:34px 0 46px;scroll-margin-top:70px}
+.lab:first-of-type{border-top:none}
+.lab-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.card{background:var(--bg-soft);border:1px solid var(--line);border-radius:14px;padding:18px 22px;margin:14px 0}
+.panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 20px;margin:12px 0}
+.panel h4{margin:0 0 10px;font-family:var(--mono);font-size:12px;letter-spacing:.04em}
+.cap{font-size:12.5px;color:var(--ink-2);margin-top:10px;line-height:1.55}
+.callout{border-radius:12px;padding:13px 17px;margin:16px 0;font-size:14px;border:1px solid}
+.callout.info{background:var(--accent-soft);border-color:var(--accent-line)}
+.callout.warn{background:var(--amber-soft);border-color:var(--amber-line)}
+.callout.trap{background:var(--red-soft);border-color:var(--red-line)}
+.callout.disc{background:var(--green-soft);border-color:var(--green-line)}
+.co-title{font-weight:700;margin-bottom:3px;font-size:13.5px}
+.callout.info .co-title{color:var(--accent)}.callout.warn .co-title{color:var(--amber)}
+.callout.trap .co-title{color:var(--red)}.callout.disc .co-title{color:var(--green)}
+
+input[type=text]{font-family:var(--mono);font-size:13.5px;padding:9px 13px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);outline:none;width:100%;min-width:0}
+input[type=text]:focus{border-color:var(--accent-line);box-shadow:0 0 0 3px var(--accent-soft)}
+input[type=number]{font-family:var(--mono);font-size:12px;padding:4px 8px;border:1px solid var(--line);border-radius:7px;width:74px}
+input[type=range]{accent-color:var(--accent);cursor:pointer}
+.btn{font-family:var(--mono);font-size:12.5px;font-weight:600;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:9px 18px;cursor:pointer;white-space:nowrap}
+.btn:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.55;cursor:wait}
+.btn.ghost{background:#fff;color:var(--ink-2);border:1px solid var(--line)}
+.btn.ghost:hover{color:var(--accent);border-color:var(--accent-line)}
+.btn.sm{padding:5px 13px;border-radius:8px;font-size:11.5px}
+
+.ctl-row{display:flex;flex-wrap:wrap;gap:18px 26px;align-items:flex-end}
+.ctl{display:flex;flex-direction:column;gap:2px;min-width:150px}
+.ctl .l{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3)}
+.ctl .v{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--accent)}
+.ctl .row{display:flex;align-items:center;gap:8px}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-2);cursor:pointer}
+
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0}
+.stat{border:1px solid var(--line);border-radius:12px;background:#fff;padding:10px 12px;min-width:0}
+.stat .k{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}
+.stat .v{font-family:var(--mono);font-size:16.5px;font-weight:700;margin:3px 0 1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat .u{font-size:10.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+.legend{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:10px;font-size:11.5px;color:var(--ink-2);font-family:var(--mono)}
+.legend .sw{width:11px;height:11px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
+
+.tok-strip{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px}
+.tok-chip{font-family:var(--mono);font-size:11px;background:var(--accent-soft);border:1px solid var(--accent-line);color:var(--accent);border-radius:7px;padding:2px 8px}
+.tok-chip em{font-style:normal;color:var(--ink-3);margin-left:5px;font-size:9.5px}
+.tok-chip.gen{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+
+/* lab2 block pool */
+.pool{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.blk{width:86px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:4px;position:relative}
+.blk .bh{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--ink-3);padding:0 2px 3px}
+.blk .refs{font-weight:700;color:var(--accent)}
+.blk .cells{display:grid;grid-template-columns:repeat(8,1fr);gap:2px}
+.blk .cell{aspect-ratio:1;border-radius:2px;background:var(--bg-soft);border:1px solid #ececf0}
+.blk.free{opacity:.45}
+.blk.free .cells .cell{background:#fafafc}
+.evlog{max-height:250px;overflow-y:auto;font-family:var(--mono);font-size:11.5px;line-height:1.7;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.evlog .ev{padding:2px 0;border-bottom:1px dashed #eee}
+.evlog .ev:last-child{border-bottom:none}
+.evlog .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px}
+.evlog .k-alloc .dot{background:var(--accent)} .evlog .k-cow .dot{background:var(--amber-line)}
+.evlog .k-share .dot{background:var(--green-line)} .evlog .k-free .dot{background:var(--ink-3)}
+.evlog .k-oom .dot{background:var(--red-line)} .evlog .k-write .dot{background:#818cf8}
+.evlog .k-oom{color:var(--red);font-weight:700}
+.bt-map{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-family:var(--mono);font-size:11px;margin:4px 0 10px}
+.bt-chip{border:1px solid var(--line);border-radius:6px;padding:2px 7px;background:#fff}
+.wastebar{height:26px;border-radius:7px;position:relative;color:#fff;font-family:var(--mono);font-size:10.5px;display:flex;align-items:center;padding:0 10px;min-width:fit-content}
+.wrow{display:grid;grid-template-columns:150px 1fr;gap:12px;align-items:center;margin:6px 0;font-size:12.5px}
+
+/* lab3 gantt */
+.gantt-wrap{margin:8px 0 2px}
+.gantt-lane{position:relative;height:34px;background:var(--bg-soft);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.gantt-lane .seg{position:absolute;top:0;bottom:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;color:#fff;white-space:nowrap;overflow:hidden;border-right:1px solid rgba(255,255,255,.35)}
+.seg.pf{background:#059669}.seg.dc{background:#4f46e5}.seg.pr{background:#dc2626;top:0;bottom:0;width:3px}
+.gantt-axis{position:relative;height:16px;font-family:var(--mono);font-size:9.5px;color:var(--ink-3)}
+.gantt-axis span{position:absolute;transform:translateX(-50%)}
+.lane-lbl{font-family:var(--mono);font-size:10.5px;color:var(--ink-2);margin:10px 0 4px}
+.rq-lane{display:grid;grid-template-columns:34px 1fr;gap:8px;align-items:center;margin:3px 0}
+.rq-lane .nm{font-family:var(--mono);font-size:11px;font-weight:700;text-align:right}
+.rq-track{position:relative;height:16px;background:var(--bg-soft);border-radius:5px}
+.rq-track .seg{position:absolute;top:0;bottom:0;border-radius:5px}
+.seg.wait{background:var(--amber-line);opacity:.55}
+.seg.run{background:linear-gradient(90deg,#818cf8,var(--accent))}
+.rq-track .flag{position:absolute;top:-3px;width:7px;height:7px;border-radius:50%;background:#dc2626;border:1px solid #fff}
+
+/* lab4 */
+.bug-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:900px){.bug-grid{grid-template-columns:1fr}}
+.bug{border:1px solid var(--line);border-radius:12px;background:#fff;padding:13px 16px}
+.bug.wrong{border-color:var(--red-line)}
+.bug.ok{border-color:var(--green-line)}
+.bug .bh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:5px}
+.bug .bn{font-family:var(--mono);font-size:12px;font-weight:700}
+.bug .out{font-family:var(--mono);font-size:13px;margin:4px 0}
+.bug .dt{font-size:12px;color:var(--ink-2);line-height:1.5}
+.drift-track{height:8px;background:var(--bg-soft);border-radius:4px;margin-top:8px;position:relative}
+.drift-bar{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--red-line)}
+
+table.data{width:100%;border-collapse:collapse;font-size:13px}
+table.data th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-2);padding:6px 10px;border-bottom:2px solid var(--line)}
+table.data td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+table.data tr:last-child td{border-bottom:none}
+.mono{font-family:var(--mono);font-size:12px}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--accent-line);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.foot{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);color:var(--ink-3);font-size:12.5px;text-align:center}
+.hide{display:none}
+</style>
+</head>
+<body>
+<div class="topbar"><div class="topbar-in">
+  <div class="brand">Day 04 · KV Cache &amp; Continuous Batching — <em style="font-style:normal;color:var(--accent)">Live Labs</em>
+    <small>every panel runs the real Day-4 code on this machine · NumPy GPT-2 124M · no model libraries</small></div>
+  <span id="status" class="badge">connecting…</span>
+  <nav class="nav">
+    <a href="#lab1">1 · naive vs cache</a><a href="#lab2">2 · paged KV</a>
+    <a href="#lab3">3 · scheduler</a><a href="#lab4">4 · bug gallery</a><a href="#notes">notes</a>
+  </nav>
+</div></div>
+
+<div class="wrap">
+
+<!-- ══════════════════ LAB 1 ══════════════════ -->
+<section class="lab" id="lab1">
+  <div class="lab-head"><h2>Lab 1 — the cache removes the waste, nothing else</h2><span class="filechip">code/01_naive_vs_cached.py</span></div>
+  <p class="sub">The same prompt is generated twice by the real model: the Day-3 loop recomputes the <em>whole prefix</em>
+  every step; the KV-cache loop prefills once and then processes <em>one token</em> per step. The continuations must be
+  identical — the cache is behaviorally invisible, it only deletes work.</p>
+
+  <div class="card"><div class="ctl-row">
+    <div class="ctl" style="flex:1;min-width:280px"><span class="l">prompt</span>
+      <input type="text" id="l1-prompt" value="Alan Turing theorized that computers would one day become"></div>
+    <div class="ctl"><span class="l">tokens to generate · <span class="v" id="l1-nv">8</span></span>
+      <div class="row"><input type="range" id="l1-n" min="2" max="10" step="1" value="8" style="width:140px"></div></div>
+    <button class="btn" id="l1-run">run both engines</button>
+    <span id="l1-hint" class="chip">~5–15 s on CPU (naive probes included)</span>
+  </div><div id="l1-err"></div></div>
+
+  <div id="l1-out" class="hide">
+    <div class="stat-grid" id="l1-stats"></div>
+    <div class="panel"><h4>continuation — naive vs cached (must be identical)</h4>
+      <div class="tok-strip" id="l1-toks"></div>
+      <div class="cap" id="l1-checkline"></div>
+    </div>
+    <div class="grid2">
+      <div class="panel"><h4>measured ms per generated token</h4>
+        <div class="legend"><span><i class="sw" style="background:#dc2626"></i>naive (full recompute)</span><span><i class="sw" style="background:#4f46e5"></i>cached decode (1 token)</span></legend>
+        <div id="l1-bars"></div>
+        <div class="cap">wall time on this machine. Naive pays the growing prefix every step; cached pays a flat
+        ~30 ms no matter how long the prefix gets. The gap widens linearly with context length.</div>
+      </div>
+      <div class="panel"><h4>weight-GEMM work per step (FLOPs, exact accounting)</h4>
+        <div class="legend"><span><i class="sw" style="background:#dc2626"></i>naive 2·N·(P+s)</span><span><i class="sw" style="background:#4f46e5"></i>cached 2·N·1</span></legend>
+        <div id="l1-flops"></div>
+        <div class="cap" id="l1-flopcap"></div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="panel"><h4>equivalence probe — max |logits<sub>cached</sub> − logits<sub>naive</sub>| per step</h4>
+        <div id="l1-diffs"></div>
+        <div class="cap">nonzero ≈1e-4 is BLAS summation-order noise on |logits|≈130 (relative ~1e-6). The contract is
+        <strong>token identity</strong>, not bitwise identity — pass threshold 1e-3.</div>
+      </div>
+      <div class="panel"><h4>what the cache costs</h4>
+        <div id="l1-mem"></div>
+        <div class="cap">KV bytes/token = layers × 2 (K+V) × heads × head_dim × dtype = 12×2×12×64×4 B =
+        <strong>73,728 B</strong> FP32 (36,864 B FP16, what engines store). This — not weights — is what caps concurrency in Lab 3.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ LAB 2 ══════════════════ -->
+<section class="lab" id="lab2">
+  <div class="lab-head"><h2>Lab 2 — paged KV: virtual memory for tokens</h2><span class="filechip">code/02_paged_kv.py</span></div>
+  <p class="sub">The memory manager vLLM made famous, simulated exactly: a physical block pool, per-sequence
+  <em>block tables</em> (page tables), a free list, prefix sharing with refcounts, and copy-on-write when a shared
+  partial block is appended to. Change the scenario and watch the pool rewire.</p>
+
+  <div class="card"><div class="ctl-row">
+    <div class="ctl"><span class="l">block size · <span class="v" id="l2-bv">16</span></span>
+      <input type="range" id="l2-block" min="4" max="32" step="4" value="16" style="width:120px"></div>
+    <div class="ctl"><span class="l">pool blocks · <span class="v" id="l2-pv">24</span></span>
+      <input type="range" id="l2-pool" min="8" max="48" step="4" value="24" style="width:120px"></div>
+    <div class="ctl"><span class="l">seq A tokens</span><input type="number" id="l2-a" value="10" min="1" max="400"></div>
+    <div class="ctl"><span class="l">seq B tokens</span><input type="number" id="l2-b" value="40" min="1" max="400"></div>
+    <label class="chk"><input type="checkbox" id="l2-share" checked> shared prefix</label>
+    <div class="ctl"><span class="l">prefix tokens</span><input type="number" id="l2-prefix" value="24" min="4" max="120"></div>
+    <div class="ctl"><span class="l">append rounds</span><input type="number" id="l2-app" value="1" min="0" max="8"></div>
+    <label class="chk"><input type="checkbox" id="l2-freea"> free A at the end</label>
+    <div class="ctl"><span class="l">reservation max_len</span><input type="number" id="l2-maxlen" value="256" min="16" max="4096"></div>
+    <button class="btn" id="l2-run">run pool</button>
+  </div></div>
+
+  <div id="l2-out">
+    <div class="stat-grid" id="l2-stats"></div>
+    <div class="panel"><h4>physical block pool — every cell is one token slot</h4>
+      <div class="legend" id="l2-legend"></div>
+      <div class="pool" id="l2-poolgrid"></div>
+      <div class="cap">color = owning sequence · number in a block header = physical id · <strong>×N = refcount</strong>
+      (shared blocks). Free blocks are faded. Solid fill = used slot, empty = reserved-but-unused (internal fragmentation).</div>
+    </div>
+    <div class="grid2">
+      <div class="panel"><h4>logical → physical block tables</h4><div id="l2-bt"></div>
+        <div class="cap">the indirection is the whole idea: a sequence's KV lives in non-contiguous physical blocks,
+        found through its block table — exactly like OS pages.</div></div>
+      <div class="panel"><h4>paged vs reservation-based allocation</h4><div id="l2-waste"></div>
+        <div class="cap">the old way (FasterTransformer/Orca) reserves max_len contiguous slots per request up front —
+        the vLLM paper measured 60–80% waste. Paging wastes at most one partial block per sequence.</div></div>
+    </div>
+    <div class="panel"><h4>event trace</h4><div class="evlog" id="l2-events"></div></div>
+  </div>
+</section>
+
+<!-- ══════════════════ LAB 3 ══════════════════ -->
+<section class="lab" id="lab3">
+  <div class="lab-head"><h2>Lab 3 — static vs continuous batching</h2><span class="filechip">code/03_continuous_batching.py</span></div>
+  <p class="sub">The actual scheduler simulation from the code file, driven by the measured cost model
+  (prefill ≈ compute-bound per token; decode ≈ 26 + 0.5·B ms — nearly flat in batch size because weight bytes are
+  fetched once per iteration). Edit the workload, shrink the KV pool, and watch admissions, preemptions and wasted slots.</p>
+
+  <div class="card">
+    <div style="overflow-x:auto"><table class="data" id="l3-reqtab">
+      <thead><tr><th>req</th><th>arrival (ms)</th><th>prompt tokens</th><th>tokens to gen</th><th></th></tr></thead>
+      <tbody></tbody></table></div>
+    <div class="ctl-row" style="margin-top:12px">
+      <button class="btn ghost sm" id="l3-add">+ add request</button>
+      <div class="ctl"><span class="l">max batch</span><input type="number" id="l3-maxb" value="4" min="1" max="8"></div>
+      <div class="ctl"><span class="l">pool blocks (16 slots each)</span><input type="number" id="l3-poolb" value="64" min="2" max="256"></div>
+      <div class="ctl"><span class="l">prefill ms/tok</span><input type="number" id="l3-pfms" value="1.2" step="0.1" min="0.1" max="10"></div>
+      <div class="ctl"><span class="l">decode base ms</span><input type="number" id="l3-dcbase" value="26" min="1" max="200"></div>
+      <div class="ctl"><span class="l">decode ms/req</span><input type="number" id="l3-dcreq" value="0.5" step="0.1" min="0" max="10"></div>
+      <button class="btn ghost sm" id="l3-preset1">default workload</button>
+      <button class="btn ghost sm" id="l3-preset2">capacity demo (18-block pool)</button>
+      <button class="btn" id="l3-run">run scheduler</button>
+    </div><div id="l3-err"></div>
+  </div>
+
+  <div id="l3-out" class="hide">
+    <div class="legend"><span><i class="sw" style="background:#059669"></i>prefill</span><span><i class="sw" style="background:#4f46e5"></i>decode iteration</span><span><i class="sw" style="background:#dc2626"></i>preemption</span><span><i class="sw" style="background:#e4e4e9"></i>idle gap (empty lane)</span><span><i class="sw" style="background:var(--amber-line)"></i>request waiting</span></div>
+    <div class="grid2">
+      <div class="panel"><h4>STATIC — wait for a batch, run until ALL finish</h4>
+        <div id="l3-gantt-s"></div><div id="l3-lanes-s"></div><div id="l3-met-s"></div></div>
+      <div class="panel"><h4>CONTINUOUS — admit on free slot, free on finish</h4>
+        <div id="l3-gantt-c"></div><div id="l3-lanes-c"></div><div id="l3-met-c"></div></div>
+    </div>
+    <div class="callout disc"><div class="co-title" id="l3-verdict-t"></div><div id="l3-verdict"></div></div>
+    <div class="cap">Both gantts share one time axis (the longer makespan). Request lanes show
+    <span style="color:var(--amber)">wait: arrival → first token</span> then
+    <span style="color:var(--accent)">active: first token → done</span>; red dots are preemptions.
+    When the pool is small, admission is decided by <strong>KV blocks, not FLOPs</strong> — R queues behind memory and Q gets preempted and recomputed.</div>
+  </div>
+</section>
+
+<!-- ══════════════════ LAB 4 ══════════════════ -->
+<section class="lab" id="lab4">
+  <div class="lab-head"><h2>Lab 4 — cache bug gallery, on the real weights</h2><span class="filechip">code/04_error_gallery.py</span></div>
+  <p class="sub">Same weights, one switch flipped per bug. Oracle: prefill the golden prompt, decode
+  <code class="inline">' the' (262)</code> — a correct cache answers <code class="inline">' most'</code>.
+  Every bug keeps every shape legal and returns fluent text that is <em>wrong</em>.</p>
+  <div class="card"><div class="ctl-row">
+    <button class="btn" id="l4-run">inject all bugs</button>
+    <span class="chip">~2 s · 8 real forward passes</span>
+  </div></div>
+  <div id="l4-out" class="hide">
+    <div class="bug-grid" id="l4-bugs"></div>
+    <div class="grid2">
+      <div class="panel"><h4>7 · FP16 KV storage — measured drift, not disaster</h4><div id="l4-fp16"></div>
+        <div class="cap">engines store K/V in FP16/BF16: halves KV memory (73,728 → 36,864 B/token) for ~1e-3 logit noise
+        and — here — the same next token. INT8/FP8 KV caches trade further; re-verify the checksum after each.</div></div>
+      <div class="panel"><h4>6 · the scheduler admission bug (actually happened)</h4><div id="l4-sched"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ NOTES ══════════════════ -->
+<section class="lab" id="notes">
+  <div class="lab-head"><h2>Accuracy &amp; provenance</h2></div>
+  <div class="callout disc"><div class="co-title">Where every number comes from</div>
+    Lab 1 and Lab 4 run the Day-3 NumPy GPT-2 (golden-checksum-verified) through Day-4's own
+    <code class="inline">cached_forward</code>/<code class="inline">KVCache</code>. Lab 2 is the instrumented block-pool
+    semantics of <code class="inline">02_paged_kv.py</code>. Lab 3 imports and executes
+    <code class="inline">03_continuous_batching.py</code> itself — same <code class="inline">simulate()</code>, same
+    <code class="inline">Req</code>, same cost model. Nothing is re-drawn from canned screenshots; every run recomputes.</div>
+  <div class="callout info"><div class="co-title">Run it</div>
+    <code class="inline">python Day04_KV_Cache_And_Batching/code/day4_server.py</code> → open
+    <code class="inline">http://127.0.0.1:8601</code>. Day 3's sampling lab lives on its own server:
+    <code class="inline">python Day03_Forward_Pass_From_Scratch/code/sampler_server.py</code> →
+    <code class="inline">http://127.0.0.1:8600</code>.</div>
+  <div class="foot">Inference From Scratch — Day 04 labs · KV bytes/token = 73,728 B FP32 · the KV pool, not FLOPs, sets max concurrency</div>
+</section>
+</div>
+
+<script>
+/* ── tiny helpers ─────────────────────────────────────────────────── */
+const $=(s,el=document)=>el.querySelector(s);
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const fixed=(x,d=3)=>Number(x).toFixed(d);
+const pct=(x,d=1)=>(x*100).toFixed(d)+'%';
+const tokL=(s,m=16)=>{let q=JSON.stringify(s);return q.length>m?q.slice(0,m-2)+'…"':q};
+async function post(ep,body){
+  const r=await fetch(ep,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body||{})});
+  const j=await r.json(); if(!j.ok) throw new Error(j.error||'request failed'); return j;
+}
+function stat(k,v,u){return `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div><div class="u">${u||''}</div></div>`}
+function errBox(el,msg){el.innerHTML=msg?`<div class="callout trap" style="margin:10px 0 0"><div class="co-title">error</div>${esc(msg)}</div>`:''}
+const PALETTE=["#4f46e5","#059669","#d97706","#dc2626","#0891b2","#7c3aed","#db2777","#65a30d","#b45309"];
+
+fetch('/api/health').then(r=>r.json()).then(h=>{
+  const s=$('#status'); s.className='badge done'; s.textContent='LIVE · '+h.model;
+}).catch(()=>{const s=$('#status'); s.className='badge bad'; s.textContent='server offline — reload after starting day4_server.py';});
+
+/* ═════════════════ LAB 1 — naive vs cached ═════════════════ */
+const N_PARAMS=124_439_808;
+$('#l1-n').oninput=e=>$('#l1-nv').textContent=e.target.value;
+$('#l1-run').onclick=async()=>{
+  const btn=$('#l1-run'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>running both engines…';
+  errBox($('#l1-err'),'');
+  try{
+    const r=await post('/api/lab1',{prompt:$('#l1-prompt').value,n_tokens:+$('#l1-n').value});
+    renderLab1(r); $('#l1-out').classList.remove('hide');
+  }catch(e){errBox($('#l1-err'),e.message)}
+  btn.disabled=false; btn.textContent='run both engines';
+};
+function renderLab1(r){
+  const n=r.n_tokens, naive=r.naive.steps_ms, cached=r.cached.steps_ms;
+  const speedup=r.naive.total_ms/(r.cached.decode_total_ms);
+  $('#l1-stats').innerHTML=[
+    stat('checksum', r.match?'PASS ✓':'FAIL ✗', r.golden?'golden continuation, token-for-token':'naive ≡ cached continuations'),
+    stat('naive total', r.naive.total_ms.toLocaleString()+' ms', n+' full-prefix forwards'),
+    stat('cached decode', r.cached.decode_total_ms.toLocaleString()+' ms', '+ prefill '+r.cached.prefill_ms+' ms'),
+    stat('decode speedup', fixed(speedup,1)+'×', 'grows linearly with prefix'),
+    stat('cache size', (r.cache_bytes/1024).toLocaleString()+' KiB', r.cache_rows+' rows × 12 layers'),
+    stat('KV per token', r.kv_fp32.toLocaleString()+' B', 'FP32 · '+(r.kv_fp16/1024)+' KiB → halve for FP16'),
+  ].join('');
+  $('#l1-toks').innerHTML=r.pieces.map((t,i)=>`<span class="tok-chip">${esc(tokL(t,12))}<em>${r.ids[i]}</em></span>`).join('')
+    +r.gen_pieces.map((t,i)=>`<span class="tok-chip gen">${esc(tokL(t,12))}<em>${r.gen_ids[i]}</em></span>`).join('');
+  $('#l1-checkline').innerHTML=`green = generated. cached continuation <code class="inline">${esc(r.continuation)}</code> — `+
+    (r.match?'<strong style="color:var(--green)">identical to the naive loop, token for token.</strong>':'<strong style="color:var(--red)">MISMATCH — cache bug!</strong>');
+  // bars: ms per step
+  const W=560,H=210,l=46,b=30,t=14,rt=12,w=W-l-rt,h=H-t-b;
+  const yMax=Math.max(...naive,...cached)*1.18, gw=w/n, bw=Math.min(26,(gw-14)/2);
+  let s='';
+  [0,.25,.5,.75,1].forEach(f=>{const y=t+h-f*h;s+=`<line x1="${l}" x2="${W-rt}" y1="${y}" y2="${y}" stroke="#d9d9de" stroke-width="0.6"/><text x="${l-6}" y="${y+3}" text-anchor="end" font-size="9" fill="#9a9aa0" font-family="monospace">${Math.round(yMax*f)}</text>`});
+  for(let i=0;i<n;i++){
+    const cx=l+gw*i+gw/2;
+    const hn=naive[i]/yMax*h, hc=cached[i]/yMax*h;
+    s+=`<rect x="${cx-bw-2}" y="${t+h-hn}" width="${bw}" height="${hn}" rx="3" fill="#dc2626" opacity="0.85"><title>naive step ${i+1}: ${naive[i]} ms (prefix ${r.prefix_lens[i]})</title></rect>`;
+    s+=`<rect x="${cx+2}" y="${t+h-hc}" width="${bw}" height="${hc}" rx="3" fill="#4f46e5"><title>cached step ${i+1}: ${cached[i]} ms</title></rect>`;
+    s+=`<text x="${cx-bw/2-2}" y="${t+h-hn-4}" text-anchor="middle" font-size="8.5" fill="#991b1b" font-family="monospace">${Math.round(naive[i])}</text>`;
+    s+=`<text x="${cx+bw/2+2}" y="${t+h-hc-4}" text-anchor="middle" font-size="8.5" fill="#4f46e5" font-family="monospace">${Math.round(cached[i])}</text>`;
+    s+=`<text x="${cx}" y="${H-b+14}" text-anchor="middle" font-size="9" fill="#9a9aa0" font-family="monospace">${i+1}</text>`;
+  }
+  s+=`<text x="${l+w/2}" y="${H-4}" text-anchor="middle" font-size="9" fill="#9a9aa0" font-family="monospace">decode step →</text>`;
+  $('#l1-bars').innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${s}</svg>`;
+  // flops lines
+  const P=r.ids.length, gf=v=>(v/1e9);
+  const fn=[],fc=[];
+  for(let i=0;i<n;i++){fn.push(gf(2*N_PARAMS*(P+i)));fc.push(gf(2*N_PARAMS));}
+  const fMax=Math.max(...fn)*1.15;
+  const fx=i=>l+(n===1?w/2:w*i/(n-1)), fy=v=>t+h-(v/fMax)*h;
+  let g='';
+  [0,.5,1].forEach(f=>{const y=t+h-f*h;g+=`<line x1="${l}" x2="${W-rt}" y1="${y}" y2="${y}" stroke="#d9d9de" stroke-width="0.6"/><text x="${l-6}" y="${y+3}" text-anchor="end" font-size="9" fill="#9a9aa0" font-family="monospace">${fixed(fMax*f,1)}</text>`});
+  g+=`<polyline points="${fn.map((v,i)=>fx(i)+','+fy(v)).join(' ')}" fill="none" stroke="#dc2626" stroke-width="2.2"/>`;
+  g+=`<polyline points="${fc.map((v,i)=>fx(i)+','+fy(v)).join(' ')}" fill="none" stroke="#4f46e5" stroke-width="2.2" stroke-dasharray="5 4"/>`;
+  fn.forEach((v,i)=>{g+=`<circle cx="${fx(i)}" cy="${fy(v)}" r="3" fill="#dc2626"/>`;g+=`<circle cx="${fx(i)}" cy="${fy(fc[i])}" r="3" fill="#4f46e5"/>`});
+  g+=`<text x="${l+w/2}" y="${H-4}" text-anchor="middle" font-size="9" fill="#9a9aa0" font-family="monospace">decode step → (GFLOP)</text>`;
+  g+=`<text x="${fx(n-1)-4}" y="${fy(fn[n-1])-7}" text-anchor="end" font-size="9" fill="#dc2626" font-family="monospace">${fixed(fn[n-1],2)}</text>`;
+  $('#l1-flops').innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${g}</svg>`;
+  $('#l1-flopcap').innerHTML=`naive ${fixed(gf(r.flops.naive),2)} GFLOP vs cached ${fixed(gf(r.flops.cached),2)} GFLOP for ${n} tokens — `+
+    `<strong>${fixed(r.flops.naive/r.flops.cached,2)}× saved</strong>, and the ratio grows linearly with generation length.`;
+  // diffs
+  const TH=1e-3, dMax=Math.max(...r.diffs,TH);
+  let d='';
+  const dl=46,db=26,dt=14,dh=H-dt-db,dw=W-dl-12;
+  const logy=v=>dt+dh-(Math.log10(v)-(-5))/((Math.log10(dMax*3)-(-5)))*dh;
+  [1e-5,1e-4,1e-3].forEach(v=>{const y=logy(v);d+=`<line x1="${dl}" x2="${W-12}" y1="${y}" y2="${y}" stroke="${v===TH?'#dc2626':'#d9d9de'}" stroke-width="${v===TH?1:0.6}" ${v===TH?'stroke-dasharray="5 4"':''}/><text x="${dl-6}" y="${y+3}" text-anchor="end" font-size="9" fill="${v===TH?'#dc2626':'#9a9aa0'}" font-family="monospace">${v.toExponential(0)}</text>`});
+  r.diffs.forEach((v,i)=>{const x=dl+dw*(n===1?.5:i/(n-1));const ok=v<TH;
+    d+=`<circle cx="${x}" cy="${logy(v)}" r="4" fill="${ok?'#059669':'#dc2626'}"><title>step ${i+1}: ${v.toExponential(2)}</title></circle>`;
+    d+=`<text x="${x}" y="${logy(v)-8}" text-anchor="middle" font-size="8" fill="${ok?'#059669':'#dc2626'}" font-family="monospace">${v.toExponential(0)}</text>`;});
+  $('#l1-diffs').innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${d}</svg>`;
+  $('#l1-mem').innerHTML=`<table class="data"><tbody>
+    <tr><td>rows cached</td><td class="mono">${r.cache_rows} (prompt ${P} + ${n} generated)</td></tr>
+    <tr><td>bytes stored</td><td class="mono">${r.cache_bytes.toLocaleString()} B = ${(r.cache_bytes/1024).toFixed(1)} KiB</td></tr>
+    <tr><td>check</td><td class="mono">${r.cache_rows} × 73,728 B = ${(r.cache_rows*r.kv_fp32).toLocaleString()} B ✓</td></tr>
+    <tr><td>as FP16</td><td class="mono">${(r.cache_rows*r.kv_fp16/1024).toFixed(1)} KiB — what engines actually store</td></tr></tbody></table>`;
+}
+
+/* ═════════════════ LAB 2 — paged KV ═════════════════ */
+['l2-block','l2-pool'].forEach(id=>$('#'+id).oninput=e=>{$('#'+id.replace('block','bv').replace('pool','pv')).textContent=e.target.value});
+async function runLab2(){
+  const body={block:+$('#l2-block').value,n_blocks:+$('#l2-pool').value,
+    seqs:[{name:'A',len:+$('#l2-a').value},{name:'B',len:+$('#l2-b').value}],
+    share:$('#l2-share').checked,prefix_len:+$('#l2-prefix').value,appends:+$('#l2-app').value,
+    free_a:$('#l2-freea').checked,max_len:+$('#l2-maxlen').value};
+  const r=await post('/api/lab2',body); renderLab2(r);
+}
+$('#l2-run').onclick=runLab2;
+function renderLab2(r){
+  const st=r.stats;
+  $('#l2-stats').innerHTML=[
+    stat('pool', st.used_blocks+' / '+r.n_blocks+' blocks', st.free_blocks+' free · '+r.block+' slots each'),
+    stat('paged waste', pct(st.paged_waste_pct,1), st.frag_slots+' idle slots — last blocks only'),
+    stat('reservation waste', pct(st.reservation.waste_pct,1), 'max_len='+st.reservation.max_len+' → '+st.reservation.reserved_slots.toLocaleString()+' slots reserved'),
+    stat('memory saved', (st.reservation.reserved_slots*r.kv_fp16/1e6).toFixed(1)+' → '+((st.reserved_slots*r.kv_fp16)/1e6).toFixed(2)+' MB', 'FP16 KV, paged vs reservation'),
+    stat('sharing', r.seqs.some(s=>s.name==='R1')?'active':'off', r.seqs.some(s=>s.name==='R1')?'prefix blocks refcounted, CoW on write':'enable "shared prefix"'),
+    stat('OOM', r.oom?'yes — pool exhausted':'no', r.oom?'scheduler would queue/preempt/swap':'pool held everything'),
+  ].join('');
+  const names=r.seqs.map(s=>s.name);
+  $('#l2-legend').innerHTML=r.seqs.map(s=>`<span><i class="sw" style="background:${s.color}"></i>${s.name} (${s.n_tokens} tok)</span>`).join('')
+    +'<span><i class="sw" style="background:var(--bg-soft);border:1px solid #ececf0"></i>free / empty slot</span>';
+  $('#l2-poolgrid').innerHTML=r.blocks.map(b=>{
+    if(b.free) return `<div class="blk free"><div class="bh"><span>#${b.id}</span><span>free</span></div><div class="cells">${Array.from({length:r.block},()=>'<span class="cell"></span>').join('')}</div></div>`;
+    const cells=Array.from({length:r.block},(_,i)=>{const s=b.slots[i];
+      return s?`<span class="cell" style="background:${s.c}" title="${s.o} token #${s.p}"></span>`:'<span class="cell"></span>'}).join('');
+    return `<div class="blk"><div class="bh"><span>#${b.id}</span>${b.refs>1?`<span class="refs">×${b.refs}</span>`:'<span></span>'}</div><div class="cells">${cells}</div></div>`;
+  }).join('');
+  $('#l2-bt').innerHTML=r.seqs.map(s=>`<div class="bt-map"><b style="color:${s.color}">${s.name}</b> (${s.n_tokens} tok) → `+
+    (s.blocks.length?s.blocks.map((p,i)=>`<span class="bt-chip">l${i}→<b>p${p}</b></span>`).join(''):'<span class="bt-chip">freed</span>')+
+    `<span class="chip">waste ${s.waste_slots} slots</span></div>`).join('');
+  const rw=st.reservation.waste_pct, pw=st.paged_waste_pct;
+  $('#l2-waste').innerHTML=
+    `<div class="wrow"><span>reservation (old)</span><div class="wastebar" style="width:${Math.max(8,rw*100)}%;background:#dc2626">${pct(rw,1)} wasted</div></div>`+
+    `<div class="wrow"><span>paged (vLLM)</span><div class="wastebar" style="width:${Math.max(8,pw*100)}%;background:#059669">${pct(pw,1)} wasted</div></div>`+
+    `<div class="cap" style="margin-top:6px">same ${st.used_slots} real tokens: reservation locks ${st.reservation.reserved_slots.toLocaleString()} slots, the pool uses ${st.reserved_slots}.</div>`;
+  $('#l2-events').innerHTML=r.events.map(e=>`<div class="ev k-${e.kind}"><span class="dot"></span>${esc(e.msg)}</div>`).join('');
+}
+runLab2().catch(()=>{});
+
+/* ═════════════════ LAB 3 — scheduler ═════════════════ */
+let REQ=[['A',0,60,10],['B',50,20,14],['C',120,100,6],['D',200,30,8]];
+function drawReqTab(){
+  $('#l3-reqtab tbody').innerHTML=REQ.map((r,i)=>`<tr>
+    <td><input type="text" style="width:44px;padding:4px 8px;border:1px solid var(--line);border-radius:7px;font-family:var(--mono);font-size:12px" value="${esc(r[0])}" onchange="REQ[${i}][0]=this.value"></td>
+    <td><input type="number" value="${r[1]}" min="0" max="5000" onchange="REQ[${i}][1]=+this.value"></td>
+    <td><input type="number" value="${r[2]}" min="1" max="400" onchange="REQ[${i}][2]=+this.value"></td>
+    <td><input type="number" value="${r[3]}" min="1" max="60" onchange="REQ[${i}][3]=+this.value"></td>
+    <td><button class="btn ghost sm" onclick="REQ.splice(${i},1);drawReqTab()">✕</button></td></tr>`).join('');
+}
+window.REQ=REQ; window.drawReqTab=drawReqTab;
+$('#l3-add').onclick=()=>{REQ.push([String.fromCharCode(65+REQ.length),0,40,8]);drawReqTab()};
+$('#l3-preset1').onclick=()=>{REQ=[['A',0,60,10],['B',50,20,14],['C',120,100,6],['D',200,30,8]];window.REQ=REQ;
+  $('#l3-maxb').value=4;$('#l3-poolb').value=64;drawReqTab()};
+$('#l3-preset2').onclick=()=>{REQ=[['P',0,120,30],['Q',0,110,30],['R',0,130,6]];window.REQ=REQ;
+  $('#l3-maxb').value=4;$('#l3-poolb').value=18;drawReqTab()};
+drawReqTab();
+$('#l3-run').onclick=async()=>{
+  const btn=$('#l3-run'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>simulating…'; errBox($('#l3-err'),'');
+  try{
+    const r=await post('/api/lab3',{requests:REQ.map(([name,arrival,prompt,gen])=>({name,arrival,prompt,gen})),
+      max_batch:+$('#l3-maxb').value,pool_blocks:+$('#l3-poolb').value,
+      prefill_ms:+$('#l3-pfms').value,decode_base:+$('#l3-dcbase').value,decode_per_req:+$('#l3-dcreq').value});
+    renderLab3(r); $('#l3-out').classList.remove('hide');
+  }catch(e){errBox($('#l3-err'),e.message)}
+  btn.disabled=false; btn.textContent='run scheduler';
+};
+function gantt(pol,span){
+  const evs=pol.events;
+  let h=`<div class="gantt-wrap"><div class="gantt-lane">`;
+  for(const e of evs){
+    const L=e.t0/span*100, Wd=Math.max(0.3,(e.t1-e.t0)/span*100);
+    if(e.label.includes('PREEMPT')) h+=`<div class="seg pr" style="left:${L}%" title="${esc(e.label)} @ ${e.t0} ms"></div>`;
+    else if(e.label.includes('prefill')) h+=`<div class="seg pf" style="left:${L}%;width:${Wd}%" title="${esc(e.label)} · ${e.t0}–${e.t1} ms">${Wd>7?esc(e.label.replace('prefill ','P·')):''}</div>`;
+    else h+=`<div class="seg dc" style="left:${L}%;width:${Wd}%" title="${esc(e.label)} · ${e.t0}–${e.t1} ms (${(e.t1-e.t0).toFixed(1)} ms)">${Wd>10?esc(e.label):''}</div>`;
+  }
+  h+='</div><div class="gantt-axis">';
+  for(let f=0;f<=4;f++) h+=`<span style="left:${f*25}%">${Math.round(span*f/4)}</span>`;
+  return h+'</div></div>';
+}
+function lanes(pol,span){
+  return pol.reqs.map(q=>{
+    const w0=q.arrival/span*100, w1=(q.t_first-q.arrival)/span*100, w2=(q.t_end-q.t_first)/span*100;
+    return `<div class="rq-lane"><span class="nm">${esc(q.name)}</span><div class="rq-track">
+      <div class="seg wait" style="left:${w0}%;width:${Math.max(.4,w1)}%" title="waiting ${Math.round(q.t_first-q.arrival)} ms"></div>
+      <div class="seg run" style="left:${(q.t_first)/span*100}%;width:${Math.max(.4,w2)}%" title="active ${Math.round(q.t_end-q.t_first)} ms"></div>
+      ${q.preempted?`<div class="flag" style="left:${(q.t_end)/span*100}%" title="preempted ${q.preempted}×"></div>`:''}
+    </div></div>`;
+  }).join('');
+}
+function mets(pol){
+  return `<div class="stat-grid" style="margin:12px 0 2px">`+
+    stat('makespan',pol.makespan.toLocaleString()+' ms','last request done')+
+    stat('GPU busy',pct(pol.busy_pct,0),(pol.busy_ms||0).toLocaleString()+' ms of work')+
+    stat('throughput',pol.throughput.toLocaleString()+' tok/s',pol.total_tokens+' tokens total')+
+    stat('wasted decode-slots',pol.wasted_slots,'finished reqs holding batch slots')+
+  `</div>`;
+}
+function renderLab3(r){
+  const span=Math.max(r.static.makespan,r.continuous.makespan);
+  $('#l3-gantt-s').innerHTML=gantt(r.static,span); $('#l3-lanes-s').innerHTML='<div class="lane-lbl">per-request lanes</div>'+lanes(r.static,span); $('#l3-met-s').innerHTML=mets(r.static);
+  $('#l3-gantt-c').innerHTML=gantt(r.continuous,span); $('#l3-lanes-c').innerHTML='<div class="lane-lbl">per-request lanes</div>'+lanes(r.continuous,span); $('#l3-met-c').innerHTML=mets(r.continuous);
+  const s=r.static,c=r.continuous;
+  const avgL=p=>p.reqs.reduce((a,q)=>a+(q.t_end-q.arrival),0)/p.reqs.length;
+  $('#l3-verdict-t').textContent=`continuous wins: makespan ${(s.makespan/c.makespan).toFixed(2)}× shorter, avg latency ${Math.round(avgL(s)).toLocaleString()} → ${Math.round(avgL(c)).toLocaleString()} ms, wasted slots ${s.wasted_slots} → ${c.wasted_slots}`;
+  const preempts=c.events.filter(e=>e.label.includes('PREEMPT')).map(e=>e.label);
+  const recomp=c.events.filter(e=>e.label.includes('RECOMPUTE')).map(e=>e.label);
+  $('#l3-verdict').innerHTML=`static holds finished requests' slots until the whole batch drains; continuous frees them the iteration they finish.
+    Throughput ${s.throughput.toLocaleString()} → ${c.throughput.toLocaleString()} tok/s, GPU busy ${pct(s.busy_pct,0)} → ${pct(c.busy_pct,0)}.`+
+    (preempts.length?`<br>Pool pressure forced: <strong style="color:var(--red)">${preempts.join(', ')}</strong> → later <code class="inline">${recomp.join(', ')}</code>. Admission is a memory decision: blocks_needed = ceil(tokens / 16).`:'');
+}
+
+/* ═════════════════ LAB 4 — bug gallery ═════════════════ */
+$('#l4-run').onclick=async()=>{
+  const btn=$('#l4-run'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>injecting…';
+  try{const r=await post('/api/lab4',{});renderLab4(r);$('#l4-out').classList.remove('hide');}
+  catch(e){}
+  btn.disabled=false; btn.textContent='inject all bugs';
+};
+function renderLab4(r){
+  $('#l4-bugs').innerHTML=r.bugs.map(b=>{
+    const good=b.ok&&b.id===0;
+    return `<div class="bug ${good?'ok':(b.ok?'ok':'wrong')}">
+      <div class="bh"><span class="bn">${b.id}. ${esc(b.name)}</span>
+        <span class="badge ${good||b.ok&&b.id===0?'done':(b.ok?'done':'bad')}">${good?'ORACLE':(b.ok?'still OK':'WRONG (silent)')}</span></div>
+      <div class="out">→ ${esc(tokL(b.output,30))} ${b.id>0&&b.id!==1?`<span style="color:var(--ink-3);font-size:11px">(oracle: ${esc(tokL(r.oracle))})</span>`:''}</div>
+      ${b.drift?`<div class="drift-track"><div class="drift-bar" style="width:${Math.min(100,Math.log10(1+b.drift)/Math.log10(40)*100)}%"></div></div>
+        <div class="mono" style="font-size:10.5px;color:var(--red);margin-top:3px">logit drift ${b.drift.toFixed(1)}</div>`:''}
+      <div class="dt">${esc(b.detail)}</div></div>`;
+  }).join('');
+  $('#l4-fp16').innerHTML=`<table class="data"><tbody>
+    <tr><td>max logit drift (FP16 K/V)</td><td class="mono">${r.fp16.drift.toExponential(2)}</td></tr>
+    <tr><td>next token unchanged</td><td class="mono" style="color:var(--green);font-weight:700">${r.fp16.same_token?'YES ✓':'NO'}</td></tr>
+    <tr><td>bytes / token</td><td class="mono">${r.fp16.bytes_fp32.toLocaleString()} B → ${r.fp16.bytes_fp16.toLocaleString()} B (−50%)</td></tr></tbody></table>`;
+  $('#l4-sched').innerHTML=`<div class="dt" style="font-size:13px">${esc(r.scheduler_bug.detail)}</div>`;
+}
+</script>
+</body>
+</html>

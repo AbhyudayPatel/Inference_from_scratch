@@ -1,5 +1,5 @@
 import React, { Suspense, useEffect, useMemo, useState } from 'react'
-import { DAYS } from './registry.js'
+import { DAYS, LABS } from './registry.js'
 import Home from './pages/Home.jsx'
 
 /* ── hash router: #/  ·  #/day-01  ·  #/day-01/section-id ────────────── */
@@ -46,6 +46,7 @@ export default function App() {
   }, [])
 
   const day = DAYS.find((d) => d.slug === route.slug)
+  const lab = route.slug === 'lab' ? LABS.find((l) => l.slug === route.section) : null
 
   return (
     <>
@@ -54,22 +55,33 @@ export default function App() {
         <aside className="sidebar">
           <div className="brand"><a href="#/">Inference From Scratch</a></div>
           <div className="brand-sub">LLM engines, rebuilt by hand</div>
-          {DAYS.map((d) => (
-            <div className="nav-day" key={d.slug}>
-              <a href={`#/${d.slug}`}
-                 className={`${d.status === 'locked' ? 'locked' : ''} ${route.slug === d.slug ? 'active' : ''}`}>
-                <span className="num">{d.num}</span>
-                {d.title}
-                {d.status === 'locked' && <span className="lock">🔒</span>}
-              </a>
-            </div>
-          ))}
+          {DAYS.map((d) => {
+            const dLab = LABS.find((l) => l.slug === d.slug)
+            return (
+              <div className="nav-day" key={d.slug}>
+                <a href={`#/${d.slug}`}
+                   className={`${d.status === 'locked' ? 'locked' : ''} ${route.slug === d.slug ? 'active' : ''}`}>
+                  <span className="num">{d.num}</span>
+                  {d.title}
+                  {d.status === 'locked' && <span className="lock">🔒</span>}
+                </a>
+                {dLab && d.status !== 'locked' && (
+                  <a className={`nav-lab ${route.slug === 'lab' && route.section === dLab.slug ? 'active' : ''}`}
+                     href={`#/lab/${dLab.slug}`}>▸ live lab</a>
+                )}
+              </div>
+            )
+          })}
         </aside>
         <div className="content">
-          <main className="article">
+          <main className={`article ${route.slug === 'lab' ? 'wide' : ''}`}>
             {!route.slug && <Home />}
-            {route.slug && day && day.status !== 'locked' && <DayPage day={day} section={route.section} />}
-            {route.slug && (!day || day.status === 'locked') && (
+            {route.slug === 'lab' && lab && <LabPage lab={lab} />}
+            {route.slug === 'lab' && !lab && (
+              <div className="load-err">unknown lab. try #/lab/day-03 or #/lab/day-04.</div>
+            )}
+            {route.slug && route.slug !== 'lab' && day && day.status !== 'locked' && <DayPage day={day} section={route.section} />}
+            {route.slug && route.slug !== 'lab' && (!day || day.status === 'locked') && (
               <div className="load-err">this day doesn't exist yet — or it's still locked.</div>
             )}
           </main>
@@ -116,6 +128,37 @@ function DayPage({ day, section }) {
   if (!Comp) return <div className="loading">loading day…</div>
   return (
     <ErrorBoundary key={day.slug}>
+      <Suspense fallback={<div className="loading">rendering…</div>}>
+        <Comp />
+      </Suspense>
+    </ErrorBoundary>
+  )
+}
+
+function LabPage({ lab }) {
+  const [Comp, setComp] = useState(null)
+  const [loadErr, setLoadErr] = useState(null)
+
+  useEffect(() => {
+    setComp(null); setLoadErr(null)
+    lab.load()
+      .then((m) => setComp(() => m.default))
+      .catch((e) => setLoadErr(e))
+    window.scrollTo(0, 0)
+  }, [lab.slug])
+
+  if (loadErr) {
+    return (
+      <div className="load-err">
+        <strong>failed to load the lab.</strong>{'\n'}
+        rebuild + hard-refresh (Ctrl+F5).{'\n\n'}
+        {String(loadErr.stack || loadErr)}
+      </div>
+    )
+  }
+  if (!Comp) return <div className="loading">loading lab…</div>
+  return (
+    <ErrorBoundary key={lab.slug}>
       <Suspense fallback={<div className="loading">rendering…</div>}>
         <Comp />
       </Suspense>

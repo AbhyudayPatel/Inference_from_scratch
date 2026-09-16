@@ -5,6 +5,27 @@
  *   2. add one entry below (status: 'locked' | 'active' | 'done')
  * Sidebar, right rail, routes, prev/next — all derive from this list.
  */
+/* LIVE LABS — full-width interactive pages at #/lab/<day-slug>.
+   Each talks to its day's Python backend (real model / real simulators). */
+export const LABS = [
+  {
+    slug: 'day-03',
+    num: '03',
+    title: 'The Sampling Lab',
+    subtitle: 'top-k · top-p · temperature · draws · rollouts — live 50,257-score vectors',
+    server: 'python Day03_Forward_Pass_From_Scratch/code/sampler_server.py',
+    load: () => import('./labs/day03/Day03Lab.jsx'),
+  },
+  {
+    slug: 'day-04',
+    num: '04',
+    title: 'KV Cache & Batching Labs',
+    subtitle: 'cache race · paged KV pool · scheduler sim · bug gallery — real Day-4 code',
+    server: 'python Day04_KV_Cache_And_Batching/code/day4_server.py',
+    load: () => import('./labs/day04/Day04Lab.jsx'),
+  },
+]
+
 export const DAYS = [
   {
     slug: 'day-01',
@@ -55,7 +76,7 @@ export const DAYS = [
     title: 'The Forward Pass, in NumPy',
     subtitle: 'embeddings · attention · MLP · logits · sampling · engine kernels',
     status: 'done',
-    stats: ['9 diagrams + HTML flow visuals', '4 verified scripts', 'golden checksum passes'],
+    stats: ['9 diagrams + HTML flow visuals', '4 verified scripts', 'golden checksum passes', 'live lab'],
     load: () => import('./days/day03/index.jsx'),
     sections: [
       { id: 'timeline',    label: 'Timeline' },
@@ -64,7 +85,6 @@ export const DAYS = [
       { id: 'logits',      label: 'The generation loop' },
       { id: 'checksum',    label: 'Repeat: greedy checksum' },
       { id: 'sampling',    label: 'Inside the selector' },
-      { id: 'lab',         label: 'Live sampling lab' },
       { id: 'errors',      label: 'Error gallery' },
       { id: 'performance', label: 'Time, FLOPs & bytes' },
       { id: 'engines',     label: 'How engines run it' },
@@ -77,7 +97,7 @@ export const DAYS = [
     title: 'KV Cache & Continuous Batching',
     subtitle: 'the single most important optimization · paged memory · the scheduler loop',
     status: 'done',
-    stats: ['HTML flow visuals + gantt', '4 verified labs', 'golden checksum on cache'],
+    stats: ['HTML flow visuals + gantt', '4 verified labs', 'golden checksum on cache', 'live lab'],
     load: () => import('./days/day04/index.jsx'),
     sections: [
       { id: 'timeline',   label: 'Timeline' },

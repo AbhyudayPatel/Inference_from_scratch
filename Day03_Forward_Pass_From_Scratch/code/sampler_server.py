@@ -16,8 +16,11 @@ Endpoints
 
 Run:
   python Day03_Forward_Pass_From_Scratch/code/sampler_server.py
-  (serves on http://127.0.0.1:8600 — the site calls it from localhost:5173)
+  then open http://127.0.0.1:8600 — the standalone Sampling Lab page
+  (day3_lab.html) is served at / and talks to the /api/* endpoints above.
 """
+
+import os
 
 import json
 import math
@@ -252,6 +255,18 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/api/health":
             self._send(200, {"ok": True, "model": "gpt2-124m-numpy-day3",
                              "vocab": VOCAB, "layers": int(core.N_LAYER)})
+        elif self.path in ("/", "/index.html"):
+            try:
+                here = os.path.dirname(os.path.abspath(__file__))
+                with open(os.path.join(here, "day3_lab.html"), "rb") as f:
+                    body = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            except FileNotFoundError:
+                self._send(404, {"ok": False, "error": "day3_lab.html missing"})
         else:
             self._send(404, {"ok": False, "error": "unknown route"})
 

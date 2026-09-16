@@ -124,6 +124,20 @@ export function R({ cells, monoCols = [] }) {
   )
 }
 
+/* ── live-lab banner (opens the day's lab route) ─────────────────────── */
+export function LabBanner({ href, title, desc }) {
+  return (
+    <a className="lab-banner" href={href}>
+      <span className="lb-left">
+        <span className="lb-badge">LIVE LAB</span>
+        <span className="lb-title">{title}</span>
+        <span className="lb-desc">{desc}</span>
+      </span>
+      <span className="lb-go">open →</span>
+    </a>
+  )
+}
+
 /* ── collapsible ─────────────────────────────────────────────────────── */
 export function Details({ summary, children, open }) {
   return (

@@ -64,6 +64,7 @@ export const DAYS = [
       { id: 'logits',      label: 'The generation loop' },
       { id: 'checksum',    label: 'Repeat: greedy checksum' },
       { id: 'sampling',    label: 'Inside the selector' },
+      { id: 'lab',         label: 'Live sampling lab' },
       { id: 'errors',      label: 'Error gallery' },
       { id: 'performance', label: 'Time, FLOPs & bytes' },
       { id: 'engines',     label: 'How engines run it' },

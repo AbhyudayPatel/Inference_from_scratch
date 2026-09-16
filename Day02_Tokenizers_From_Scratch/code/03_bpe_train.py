@@ -10,6 +10,8 @@ CORPUS = ["low", "lower", "lowest", "newest", "widest"]
 
 # each word starts as a tuple of characters (+ implicit end-of-word marker)
 words = [tuple(w) + ("</w>",) for w in CORPUS]
+print("words as tuples:")
+print("  ", words)
 print("corpus as symbols:")
 for w in words:
     print("  ", " ".join(w))

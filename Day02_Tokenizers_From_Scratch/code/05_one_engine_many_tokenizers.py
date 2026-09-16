@@ -13,7 +13,7 @@ Also: the tokens/byte economics table across languages.
 import json
 import regex as re
 
-M = "../../Day01_GPT2_From_Scratch/models"
+M = r"C:\Users\abhyu\Desktop\Inference_from_scratch\Day01_GPT2_From_Scratch\models"
 
 
 def bytes_to_unicode():

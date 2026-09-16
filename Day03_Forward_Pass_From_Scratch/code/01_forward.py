@@ -20,8 +20,8 @@ import importlib.util
 
 import numpy as np
 
-M1 = "../../Day01_GPT2_From_Scratch/models"
-D2 = "../../Day02_Tokenizers_From_Scratch/code/04_gpt2_bpe.py"
+M1 = r"C:\Users\abhyu\Desktop\Inference_from_scratch\Day01_GPT2_From_Scratch\models"
+D2 = r"C:\Users\abhyu\Desktop\Inference_from_scratch\Day02_Tokenizers_From_Scratch\code\04_gpt2_bpe.py"
 
 # ---------------------------------------------------------------- Day 2 tokenizer
 spec = importlib.util.spec_from_file_location("d2tok", D2)

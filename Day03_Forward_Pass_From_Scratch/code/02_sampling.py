@@ -13,7 +13,7 @@ No library sampler: every probability operation is shown.
 import importlib.util
 import numpy as np
 
-spec = importlib.util.spec_from_file_location("core", "01_forward.py")
+spec = importlib.util.spec_from_file_location("core", r"Day03_Forward_Pass_From_Scratch\code\01_forward.py")
 core = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(core)
 
